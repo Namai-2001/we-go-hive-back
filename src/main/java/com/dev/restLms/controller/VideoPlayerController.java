@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.dev.restLms.model.VideoPlayerBookMark;
 import com.dev.restLms.model.VideoPlayerOfferedSubjects;
 import com.dev.restLms.model.VideoPlayerSubjectOwnVideo;
+import com.dev.restLms.model.VideoPlayerUser;
 import com.dev.restLms.model.VideoPlayerUserOwnSubjectVideo;
 import com.dev.restLms.model.VideoPlayerVideo;
 import com.dev.restLms.persistent.VideoPlayerBookMarkRepository;
@@ -17,6 +18,7 @@ import com.dev.restLms.persistent.VideoPlayerUserRepository;
 import com.dev.restLms.persistent.VideoPlayerVideoRepository;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
 import java.util.ArrayList;
@@ -98,8 +100,11 @@ public class VideoPlayerController {
     @Operation(summary = "강의 플레이어에 들어갈 특정 사용자의  강의 목록")
     @GetMapping("/videoList")
     public List<Map<String, Object>> getSubjectsVideosList(
+      @Parameter(description = "사용자 고유 ID", required = true)
       @RequestParam String sessionId,
+      @Parameter(description = "회차 번호", required = true)
       @RequestParam Integer episodeId,
+      @Parameter(description = "개설 과목 코드", required = true)
       @RequestParam String offeredSubjectsId) {
         
         List<Map<String, Object>> resultList = new ArrayList<>();
@@ -123,12 +128,38 @@ public class VideoPlayerController {
         return resultList;
     }
       
-    @Operation(summary = "특정 사용자 북마크 목록으로 조회")
+    @Operation(summary = "강의 플레이어에 들어갈 북마크 목록")
     @GetMapping("/bookmarkList")
     public List<VideoPlayerBookMark> getBookMarkList (
+      @Parameter(description = "사용자 고유 ID", required = true)
       @RequestParam String sessionId,
+      @Parameter(description = "회차 번호", required = true)
       @RequestParam Integer episodeId,
+      @Parameter(description = "개설 과목 코드", required = true)
       @RequestParam String offeredSubjectsId) {
-        return videoPlayerBookMarkRepository.findAll();
+        return videoPlayerBookMarkRepository.findByBmSessionIdAndBmEpisodeIdAndBmOfferedSubjectsId(sessionId,episodeId,offeredSubjectsId);
+    }
+
+    @Operation(summary = "처음 비디오 플레이어 실행시에 실행될 강의 데이터")
+    @GetMapping("/runningVideo")
+    public Map<String, Object> playVideo(
+      @Parameter(description = "사용자 고유 ID", required = true)
+      @RequestParam String sessionId,
+      @Parameter(description = "회차 번호", required = true)
+      @RequestParam Integer episodeId,
+      @Parameter(description = "개설 과목 코드", required = true)
+      @RequestParam String offeredSubjectsId) {
+        Map<String, Object> resultMap = new HashMap<>();
+        Optional<VideoPlayerUserOwnSubjectVideo> userOwnSubjectVideo = videoPlayerUserOwnSubjectVideoRepository.findByUosvSessionIdAndUosvEpisodeIdAndUosvOfferedSubjectsid(sessionId, episodeId, offeredSubjectsId);
+        Optional<VideoPlayerSubjectOwnVideo> videoPlayerSubjectOwnVideo = videoPlayerSubjectOwnVideoRepository.findBySovOffredSubjectsIdAndEpisodeId(userOwnSubjectVideo.get().getUosvOfferedSubjectsid(), userOwnSubjectVideo.get().getUosvEpisodeId());
+        Optional<VideoPlayerOfferedSubjects> videoPlayerOfferedSubjects = videoPlayerOfferedSubjectsRepository.findById(offeredSubjectsId);
+        Optional<VideoPlayerUser> videoPlayerUser = videoPlayerUserRepository.findBySessionId(videoPlayerOfferedSubjects.get().getTeacherSessionId());
+        Optional<VideoPlayerVideo> videoPlayerVideo = videoPlayerVideoRepository.findByVideoId(videoPlayerSubjectOwnVideo.get().getSovVideoId());
+        
+        resultMap.put("final", userOwnSubjectVideo.get().getFinalLocation());
+        resultMap.put("teacherName", videoPlayerUser.get().getUserName());
+        resultMap.put("videoLink", videoPlayerVideo.get().getVideoLink());
+        resultMap.put("vidTitle", videoPlayerVideo.get().getVideoTitle());
+        return resultMap;
     }
 }
