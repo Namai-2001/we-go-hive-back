@@ -21,7 +21,7 @@ public class VideoPlayerVideo {
   private String videoId;
 
   @Column(name = "max")
-  private String max;
+  private Integer max;
 
   @Column(name = "video_title")
   private String videoTitle;

@@ -7,10 +7,12 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.NoArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
 
+@Builder
 @Entity
 @Getter
 @Setter
@@ -27,9 +29,6 @@ public class VideoPlayerBookMark {
   @Column(name = "INCREASE_ID")
   private int increaseId;
 
-  @Column(name = "bookmark_time")
-  private String bookmarkTime;
-
   @Column(name = "BM_SESSION_ID")
   private String bmSessionId;
 
@@ -38,6 +37,9 @@ public class VideoPlayerBookMark {
 
   @Column(name = "BM_OFFERED_SUBJECTS_ID")
   private String bmOfferedSubjectsId;
+
+  @Column(name = "bookmark_time")
+  private Integer bookmarkTime;
 
   @Column(name = "bookmark_content")
   private String bookmarkContent;

@@ -5,10 +5,12 @@ import org.springframework.stereotype.Repository;
 
 import com.dev.restLms.model.VideoPlayerBookMark;
 import java.util.List;
+import java.util.Optional;
 
 
 
 @Repository
 public interface VideoPlayerBookMarkRepository extends JpaRepository<VideoPlayerBookMark, Object> {
   List<VideoPlayerBookMark> findByBmSessionIdAndBmEpisodeIdAndBmOfferedSubjectsId(String bmSessionId, Integer bmEpisodeId, String bmOfferedSubjectsId);
+  Optional<VideoPlayerBookMark> findByBookmarkTime(Integer bookmarkTime);
 }

@@ -36,5 +36,5 @@ public class VideoPlayerUserOwnSubjectVideo {
   private Integer progress;
 
   @Column(name = "final")
-  private String finalLocation;
+  private Integer finalLocation;
 }

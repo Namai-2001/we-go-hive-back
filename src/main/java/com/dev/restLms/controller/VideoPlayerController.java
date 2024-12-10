@@ -4,6 +4,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.dev.restLms.DTO.BookMarkDTO;
+import com.dev.restLms.DTO.VideoPlayerRunningTimeDTO;
 import com.dev.restLms.model.VideoPlayerBookMark;
 import com.dev.restLms.model.VideoPlayerOfferedSubjects;
 import com.dev.restLms.model.VideoPlayerSubjectOwnVideo;
@@ -31,7 +33,10 @@ import java.util.Optional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 
 
 @RestController
@@ -140,6 +145,41 @@ public class VideoPlayerController {
         return videoPlayerBookMarkRepository.findByBmSessionIdAndBmEpisodeIdAndBmOfferedSubjectsId(sessionId,episodeId,offeredSubjectsId);
     }
 
+    @Operation(summary = "북마크 추가(20개가 넘으면 사이즈 반환, 동일한 시점의 북마크 불가)")
+    @PostMapping("/addBookmark")
+    public String addBookmark (
+      @Parameter(description = "사용자 고유 ID", required = true)
+      @RequestParam String sessionId,
+      @Parameter(description = "회차 번호", required = true)
+      @RequestParam Integer episodeId,
+      @Parameter(description = "개설 과목 코드", required = true)
+      @RequestParam String offeredSubjectsId,
+      @RequestBody BookMarkDTO bookmarkDTO) {
+      try {
+        List<VideoPlayerBookMark> videoPlayerBookMark = videoPlayerBookMarkRepository.findByBmSessionIdAndBmEpisodeIdAndBmOfferedSubjectsId(sessionId, episodeId, offeredSubjectsId);
+        // 한 과목당 학생은 북마크 20개 이하로 추가 가능함
+        // 이미 있는 북마크 시간에 대해서는 추가 불가능
+        if (videoPlayerBookMark.size() <= 20 && !videoPlayerBookMarkRepository.findByBookmarkTime(bookmarkDTO.getBookmarkTime()).isPresent()) {
+            VideoPlayerBookMark bookMark = VideoPlayerBookMark.builder()
+              .bmEpisodeId(episodeId)
+              .bmSessionId(sessionId)
+              .bmOfferedSubjectsId(offeredSubjectsId)
+              .bookmarkTime(bookmarkDTO.getBookmarkTime())
+              .bookmarkContent(bookmarkDTO.getBookmarkContent())
+              .build();
+            videoPlayerBookMarkRepository.save(bookMark);
+        }
+        return "Success";
+      } catch (HttpMessageNotReadableException e) {
+          // JSON 파싱 에러 처리 - 특수문자(이스케이프 문자 등)
+          System.out.println(e.getMessage());
+          return "Special characters wrong";
+      } catch (Exception e) {
+          System.out.println(e.getMessage());
+          return "Something wrong";
+      }
+    }
+
     @Operation(summary = "처음 비디오 플레이어 실행시에 실행될 강의 데이터")
     @GetMapping("/runningVideo")
     public Map<String, Object> playVideo(
@@ -162,4 +202,34 @@ public class VideoPlayerController {
         resultMap.put("vidTitle", videoPlayerVideo.get().getVideoTitle());
         return resultMap;
     }
+
+    @Operation(summary = "비디오 플레이어 FINAL 수정 & progress 업데이트")
+    @PostMapping("/UpdateFinal")
+    public String updateFinal(
+      @Parameter(description = "사용자 고유 ID", required = true)
+      @RequestParam String sessionId,
+      @Parameter(description = "회차 번호", required = true)
+      @RequestParam Integer episodeId,
+      @Parameter(description = "개설 과목 코드", required = true)
+      @RequestParam String offeredSubjectsId,
+      @RequestBody VideoPlayerRunningTimeDTO runningTimeDTO) {
+        Optional<VideoPlayerUserOwnSubjectVideo> userOwnSubjectVideo = videoPlayerUserOwnSubjectVideoRepository.findByUosvSessionIdAndUosvEpisodeIdAndUosvOfferedSubjectsid(sessionId, episodeId, offeredSubjectsId);
+        if (userOwnSubjectVideo.isEmpty()) {
+          return "UserOwnSubjectVideo not found";
+        }
+        Optional<VideoPlayerSubjectOwnVideo> videoPlayerSubjectOwnVideo = videoPlayerSubjectOwnVideoRepository.findBySovOffredSubjectsIdAndEpisodeId(userOwnSubjectVideo.get().getUosvOfferedSubjectsid(), userOwnSubjectVideo.get().getUosvEpisodeId());
+        Optional<VideoPlayerVideo> videoPlayerVideo = videoPlayerVideoRepository.findByVideoId(videoPlayerSubjectOwnVideo.get().getSovVideoId());
+
+        // 특정 과목의 영상에서 영상의 최대 위치보다 유저가 현재 시청하고 있는 시점이 미치지 못한 경우 -> 업데이트
+        // 기존에 시청했던 위치보다 더 앞의 위치를 시청하는 경우 -> 업데이트
+        if(videoPlayerVideo.get().getMax() > userOwnSubjectVideo.get().getFinalLocation() && userOwnSubjectVideo.get().getFinalLocation() < runningTimeDTO.getFinalLocation()){
+          userOwnSubjectVideo.get().setFinalLocation(runningTimeDTO.getFinalLocation());
+          // 해당 과목에 대한 영상 진행도 업데이트
+          userOwnSubjectVideo.get().setProgress((int) Math.ceil(runningTimeDTO.getFinalLocation() / (double) videoPlayerVideo.get().getMax() * 100));
+          videoPlayerUserOwnSubjectVideoRepository.save(userOwnSubjectVideo.get());
+        }else return "Aleady Final";
+        return "Update";
+    }
+
+
 }
