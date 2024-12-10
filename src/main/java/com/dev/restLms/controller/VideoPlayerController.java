@@ -159,7 +159,10 @@ public class VideoPlayerController {
         List<VideoPlayerBookMark> videoPlayerBookMark = videoPlayerBookMarkRepository.findByBmSessionIdAndBmEpisodeIdAndBmOfferedSubjectsId(sessionId, episodeId, offeredSubjectsId);
         // 한 과목당 학생은 북마크 20개 이하로 추가 가능함
         // 이미 있는 북마크 시간에 대해서는 추가 불가능
-        if (videoPlayerBookMark.size() <= 20 && !videoPlayerBookMarkRepository.findByBookmarkTime(bookmarkDTO.getBookmarkTime()).isPresent()) {
+        System.out.println(bookmarkDTO.getBookmarkContent());
+        System.out.println(bookmarkDTO.getBookmarkTime());
+        if (videoPlayerBookMark.size() <= 20 && bookmarkDTO.getBookmarkTime() != null) {
+          if(videoPlayerBookMarkRepository.findByBookmarkTime(bookmarkDTO.getBookmarkTime()).isPresent()) return "Duplicated Time";
             VideoPlayerBookMark bookMark = VideoPlayerBookMark.builder()
               .bmEpisodeId(episodeId)
               .bmSessionId(sessionId)
@@ -167,6 +170,7 @@ public class VideoPlayerController {
               .bookmarkTime(bookmarkDTO.getBookmarkTime())
               .bookmarkContent(bookmarkDTO.getBookmarkContent())
               .build();
+           
             videoPlayerBookMarkRepository.save(bookMark);
         }
         return "Success";
