@@ -1,5 +1,6 @@
 package com.dev.restLms.model;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
@@ -18,7 +19,9 @@ import lombok.Setter;
 // 개설과목 코드가 있으니, 강사의 아이디를 뺴와야 한다.
 public class VideoPlayerOfferedSubjects {
   @Id
+  @Column(name = "offered_subjects_id")
   private String offeredSubjectsId;
 
+  @Column(name = "teacher_session_id")
   private String teacherSessionId;
 }

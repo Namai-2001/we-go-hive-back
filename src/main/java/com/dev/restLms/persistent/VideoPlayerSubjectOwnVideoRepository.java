@@ -9,5 +9,5 @@ import java.util.List;
 
 @Repository
 public interface VideoPlayerSubjectOwnVideoRepository extends JpaRepository<VideoPlayerSubjectOwnVideo, Integer> {
-  List<VideoPlayerSubjectOwnVideo> findByEpisodeIdAndOfferedSubjectsid(int episodeId, String offeredSubjectsid);
+  List<VideoPlayerSubjectOwnVideo> findBySovOffredSubjectsId(String sovOffredSubjectsId);
 }

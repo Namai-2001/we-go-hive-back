@@ -9,7 +9,6 @@ import java.util.List;
 
 
 @Repository
-public interface VideoPlayerBookMarkRepository extends JpaRepository<VideoPlayerBookMark, String> {
-  VideoPlayerBookMark findByBookmarkTimeAndSessionIdAndEpisodeIdAndOfferedSubjectsId(String bookmarkTime, String sessionId, int episodeId, String offeredSubjectsId);
-  List<VideoPlayerBookMark> findBySessionIdAndEpisodeIdAndOfferedSubjectsId(String sessionId, int episodeId, String offeredSubjectsId);
+public interface VideoPlayerBookMarkRepository extends JpaRepository<VideoPlayerBookMark, Object> {
+  List<VideoPlayerBookMark> findByBmSessionIdAndBmEpisodeIdAndBmOfferedSubjectsId(String bmSessionId, Integer bmEpisodeId, String bmOfferedSubjectsId);
 }

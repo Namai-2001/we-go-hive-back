@@ -2,6 +2,8 @@ package com.dev.restLms.model;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
@@ -17,12 +19,22 @@ import lombok.Setter;
 @Table(name = "userownsubjectvideo")
 public class VideoPlayerUserOwnSubjectVideo {
   @Id
-  private String sessionId;
-  
-  private int episodeId;
-  private String offeredSubjectsid;
-  private int progress;
+  @GeneratedValue(strategy = GenerationType.AUTO)
+  @Column(name = "INCREASE_ID")
+  private int increaseId;
 
-  @Column(name = "FINAL")
+  @Column(name = "UOSV_SESSION_ID")
+  private String uosvSessionId;
+  
+  @Column(name = "UOSV_EPISODE_ID")
+  private Integer uosvEpisodeId;
+
+  @Column(name = "UOSV_OFFERED_SUBJECTS_ID")
+  private String uosvOfferedSubjectsid;
+
+  @Column(name = "progress")
+  private Integer progress;
+
+  @Column(name = "final")
   private String finalLocation;
 }
