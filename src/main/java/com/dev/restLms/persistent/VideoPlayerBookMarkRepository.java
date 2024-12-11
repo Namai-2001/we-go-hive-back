@@ -11,6 +11,7 @@ import java.util.Optional;
 
 @Repository
 public interface VideoPlayerBookMarkRepository extends JpaRepository<VideoPlayerBookMark, Object> {
-  List<VideoPlayerBookMark> findByBmSessionIdAndBmEpisodeIdAndBmOfferedSubjectsId(String bmSessionId, Integer bmEpisodeId, String bmOfferedSubjectsId);
+  List<VideoPlayerBookMark> findAllByBmSessionIdAndBmEpisodeIdAndBmOfferedSubjectsId(String bmSessionId, Integer bmEpisodeId, String bmOfferedSubjectsId);
+  Optional<VideoPlayerBookMark> findByBmSessionIdAndBmEpisodeIdAndBmOfferedSubjectsIdAndBookmarkTime(String bmSessionId, Integer bmEpisodeId, String bmOfferedSubjectsId, Integer bookmarkTime);
   Optional<VideoPlayerBookMark> findByBookmarkTime(Integer bookmarkTime);
 }

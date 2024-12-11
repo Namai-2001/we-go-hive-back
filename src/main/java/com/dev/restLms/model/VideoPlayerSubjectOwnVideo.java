@@ -21,13 +21,13 @@ public class VideoPlayerSubjectOwnVideo {
   @Id
   @GeneratedValue(strategy = GenerationType.AUTO)
   @Column(name = "episode_id")
-  private int episodeId;
+  private Integer episodeId;
 
   @Column(name = "SOV_OFFERED_SUBJECTS_ID")
   private String sovOffredSubjectsId;
 
   @Column(name = "VIDEO_SORT_INDEX")
-  private int videoSortIndex;
+  private Integer videoSortIndex;
 
   @Column(name = "SOV_VIDEO_ID")
   private String sovVideoId;
