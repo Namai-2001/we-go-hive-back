@@ -27,7 +27,7 @@ public class VideoPlayerBookMark {
   @Id // 기본키 + 하위 3개 외래키
   @GeneratedValue(strategy = GenerationType.AUTO)
   @Column(name = "INCREASE_ID")
-  private int increaseId;
+  private Integer increaseId;
 
   @Column(name = "BM_SESSION_ID")
   private String bmSessionId;

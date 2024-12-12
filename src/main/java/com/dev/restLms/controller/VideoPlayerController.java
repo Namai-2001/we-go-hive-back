@@ -154,11 +154,11 @@ public class VideoPlayerController {
         // 저장하려고 하는 북마크 시간이 제대로 들어오지 않으면, 반환
         if (bookmarkDTO.getBookmarkTime() != null) {
           // 이미 있는 북마크 시간에 대해서는 추가 불가능
-          if(videoPlayerBookMarkRepository.findByBookmarkTime(bookmarkDTO.getBookmarkTime()).isPresent()) {
-            Map<String, String> errorResponse = new HashMap<>();
-            errorResponse.put("message", "중복된 시점의 북마크가 있습니다.");
-            return ResponseEntity.status(HttpStatus.CONFLICT).body(errorResponse);
-          }
+          // if(videoPlayerBookMarkRepository.findByBookmarkTime(bookmarkDTO.getBookmarkTime()).isPresent()) {
+          //   Map<String, String> errorResponse = new HashMap<>();
+          //   errorResponse.put("message", "중복된 시점의 북마크가 있습니다.");
+          //   return ResponseEntity.status(HttpStatus.CONFLICT).body(errorResponse);
+          // }
             VideoPlayerBookMark bookMark = VideoPlayerBookMark.builder()
               .bmEpisodeId(episodeId)
               .bmSessionId(sessionId)
@@ -171,7 +171,7 @@ public class VideoPlayerController {
             return ResponseEntity.ok(videoPlayerBookMarkRepository.findAllByBmSessionIdAndBmEpisodeIdAndBmOfferedSubjectsId(sessionId, episodeId, offeredSubjectsId));
         }
           Map<String, String> errorResponse = new HashMap<>();
-          errorResponse.put("message", "20개를 초과했습니다.");
+          errorResponse.put("message", "잘못된 정보가 입력되었습니다.(특수문자 < > \\ / 등)");
           return ResponseEntity.status(HttpStatus.CONFLICT).body(errorResponse);
       } catch (HttpMessageNotReadableException e) {
           // JSON 파싱 에러 처리 - 특수문자(이스케이프 문자 등)
@@ -187,12 +187,14 @@ public class VideoPlayerController {
 
     @PostMapping("/deleteBookmark")
     public ResponseEntity<?> deleteBookmark(
+        @RequestParam Integer increaseId,
         @RequestParam String sessionId,
         @RequestParam Integer episodeId,
         @RequestParam String offeredSubjectsId,
         @RequestParam Integer bookmarkTime) {
+        // 특정 과목에 다른 회차에 동일한 시점의 북마크가 존재할 수 있기 떄문에 삭제시에는 increaseId를 포함한 검색을 통해 삭제(Unique한 값임)
         Optional<VideoPlayerBookMark> videoPlayerBookMark =
-            videoPlayerBookMarkRepository.findByBmSessionIdAndBmEpisodeIdAndBmOfferedSubjectsIdAndBookmarkTime(sessionId, episodeId, offeredSubjectsId, bookmarkTime);
+            videoPlayerBookMarkRepository.findByIncreaseIdAndBmSessionIdAndBmEpisodeIdAndBmOfferedSubjectsIdAndBookmarkTime(increaseId, sessionId, episodeId, offeredSubjectsId, bookmarkTime);
         if (videoPlayerBookMark.isPresent()) {
             videoPlayerBookMarkRepository.delete(videoPlayerBookMark.get());
             return ResponseEntity.ok(videoPlayerBookMarkRepository.findAllByBmSessionIdAndBmEpisodeIdAndBmOfferedSubjectsId(sessionId,episodeId,offeredSubjectsId));
@@ -220,7 +222,7 @@ public class VideoPlayerController {
         Optional<VideoPlayerVideo> videoPlayerVideo;
         // 해당 영상을 시청한 적이 있는 경우 => UserOwnSubjectVideo에서 해당 에피소드에 대한 정보가 있으며, 영상에서 시청 기록이 0초 이상인 경우
         if(userOwnSubjectVideo.isPresent()){
-          if(userOwnSubjectVideo.get().getFinalLocation() > 5){
+          if(userOwnSubjectVideo.get().getFinalLocation() > 0){
             videoPlayerSubjectOwnVideo = videoPlayerSubjectOwnVideoRepository.findBySovOffredSubjectsIdAndEpisodeId(userOwnSubjectVideo.get().getUosvOfferedSubjectsid(), userOwnSubjectVideo.get().getUosvEpisodeId());
             videoPlayerOfferedSubjects = videoPlayerOfferedSubjectsRepository.findById(offeredSubjectsId);
             videoPlayerUser = videoPlayerUserRepository.findBySessionId(videoPlayerOfferedSubjects.get().getTeacherSessionId());
@@ -239,7 +241,7 @@ public class VideoPlayerController {
           // -- 이전 UserOwnSubjectVideo의 progress가 100이상이면 Ok sortIdx 값 -1 한 영상 항목의 값과 비교를 해도 됨
           // 해당 영상이 처음인 경우 => 바로 삽입(수강을 신청할 때에 해당 과정을 듣는 사용자가 포함된 개설 과목에 대한 정보를 사용하여 UserOwnSubjectVideo 레코드도 finalLocation의 값이 0으로 삽입됨)
           // => 영상이 처음인 경우는 finalLocation값이 0(디폴트)이면서 해당 영상의 sortIndex값이 1이다(1회차)
-          if(userOwnSubjectVideo.get().getFinalLocation() == 5 &&
+          if(userOwnSubjectVideo.get().getFinalLocation() == 0 &&
             videoPlayerSubjectOwnVideoRepository.findBySovOffredSubjectsIdAndEpisodeId(offeredSubjectsId, episodeId).get().getVideoSortIndex() == 1){
             // sortIdx를 추출하기 위함
             // Optional<VideoPlayerSubjectOwnVideo> videoPlayerSubjectOwnVideoCurrent = videoPlayerSubjectOwnVideoRepository.findBySovOffredSubjectsIdAndEpisodeId(offeredSubjectsId, episodeId);
@@ -309,13 +311,11 @@ public class VideoPlayerController {
       @RequestParam String offeredSubjectsId,
       @RequestBody VideoPlayerRunningTimeDTO runningTimeDTO) {
         Optional<VideoPlayerUserOwnSubjectVideo> userOwnSubjectVideo = videoPlayerUserOwnSubjectVideoRepository.findByUosvSessionIdAndUosvEpisodeIdAndUosvOfferedSubjectsid(sessionId, episodeId, offeredSubjectsId);
-        // 잘못된 사용자이면 0초를 반환하고 이후에 프론트에서는 이게 final 값이니까 영상 실행이 안됨
-        if (userOwnSubjectVideo.isEmpty()) {
-          return 0; 
-        }
         Optional<VideoPlayerSubjectOwnVideo> videoPlayerSubjectOwnVideo = videoPlayerSubjectOwnVideoRepository.findBySovOffredSubjectsIdAndEpisodeId(userOwnSubjectVideo.get().getUosvOfferedSubjectsid(), userOwnSubjectVideo.get().getUosvEpisodeId());
         Optional<VideoPlayerVideo> videoPlayerVideo = videoPlayerVideoRepository.findByVideoId(videoPlayerSubjectOwnVideo.get().getSovVideoId());
-
+        // 잘못된 사용자이면 0초를 반환하고 이후에 프론트에서는 이게 final 값이니까 영상 실행이 안됨
+        if (userOwnSubjectVideo.isEmpty()) return 0;
+       
         // 특정 과목의 영상에서 영상의 최대 위치보다 유저가 현재 시청하고 있는 시점이 미치지 못한 경우 -> 업데이트
         // 기존에 시청했던 위치보다 더 앞의 위치를 시청하는 경우 -> 업데이트
         if(videoPlayerVideo.get().getMax() > userOwnSubjectVideo.get().getFinalLocation() && userOwnSubjectVideo.get().getFinalLocation() < runningTimeDTO.getFinalLocation()){

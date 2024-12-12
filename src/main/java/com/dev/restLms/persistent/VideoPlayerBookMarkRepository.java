@@ -13,5 +13,6 @@ import java.util.Optional;
 public interface VideoPlayerBookMarkRepository extends JpaRepository<VideoPlayerBookMark, Object> {
   List<VideoPlayerBookMark> findAllByBmSessionIdAndBmEpisodeIdAndBmOfferedSubjectsId(String bmSessionId, Integer bmEpisodeId, String bmOfferedSubjectsId);
   Optional<VideoPlayerBookMark> findByBmSessionIdAndBmEpisodeIdAndBmOfferedSubjectsIdAndBookmarkTime(String bmSessionId, Integer bmEpisodeId, String bmOfferedSubjectsId, Integer bookmarkTime);
+  Optional<VideoPlayerBookMark> findByIncreaseIdAndBmSessionIdAndBmEpisodeIdAndBmOfferedSubjectsIdAndBookmarkTime(Integer increaseId, String bmSessionId, Integer bmEpisodeId, String bmOfferedSubjectsId, Integer bookmarkTime);
   Optional<VideoPlayerBookMark> findByBookmarkTime(Integer bookmarkTime);
 }
