@@ -139,7 +139,7 @@ public class VideoPlayerController {
         return videoPlayerBookMarkRepository.findAllByBmSessionIdAndBmEpisodeIdAndBmOfferedSubjectsId(sessionId,episodeId,offeredSubjectsId);
     }
 
-    @Operation(summary = "북마크 추가(20개가 넘으면 사이즈 반환, 동일한 시점의 북마크 불가)")
+    @Operation(summary = "특정 시점의 북마크 추가")
     @PostMapping("/addBookmark")
     public ResponseEntity<?> addBookmark (
       @Parameter(description = "사용자 고유 ID", required = true)
@@ -150,15 +150,8 @@ public class VideoPlayerController {
       @RequestParam String offeredSubjectsId,
       @RequestBody BookMarkDTO bookmarkDTO) {
       try {
-        // 한 영상당 학생은 북마크 20개 이하로 추가 가능함
         // 저장하려고 하는 북마크 시간이 제대로 들어오지 않으면, 반환
         if (bookmarkDTO.getBookmarkTime() != null) {
-          // 이미 있는 북마크 시간에 대해서는 추가 불가능
-          // if(videoPlayerBookMarkRepository.findByBookmarkTime(bookmarkDTO.getBookmarkTime()).isPresent()) {
-          //   Map<String, String> errorResponse = new HashMap<>();
-          //   errorResponse.put("message", "중복된 시점의 북마크가 있습니다.");
-          //   return ResponseEntity.status(HttpStatus.CONFLICT).body(errorResponse);
-          // }
             VideoPlayerBookMark bookMark = VideoPlayerBookMark.builder()
               .bmEpisodeId(episodeId)
               .bmSessionId(sessionId)
