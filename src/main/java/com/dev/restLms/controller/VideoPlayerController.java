@@ -184,13 +184,18 @@ public class VideoPlayerController {
           return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
       }
     }
-
+    @Operation(summary = "특정 북마크 삭제")
     @PostMapping("/deleteBookmark")
     public ResponseEntity<?> deleteBookmark(
+        @Parameter(description = "테이블 고유값", required = true)
         @RequestParam Integer increaseId,
+        @Parameter(description = "사용자 SessionId", required = true)
         @RequestParam String sessionId,
+        @Parameter(description = "특정 과목의 영상 회차 번호", required = true)
         @RequestParam Integer episodeId,
+        @Parameter(description = "특정 개설 과목 번호", required = true)
         @RequestParam String offeredSubjectsId,
+        @Parameter(description = "해당 북마크의 시점", required = true)
         @RequestParam Integer bookmarkTime) {
         // 특정 과목에 다른 회차에 동일한 시점의 북마크가 존재할 수 있기 떄문에 삭제시에는 increaseId를 포함한 검색을 통해 삭제(Unique한 값임)
         Optional<VideoPlayerBookMark> videoPlayerBookMark =
