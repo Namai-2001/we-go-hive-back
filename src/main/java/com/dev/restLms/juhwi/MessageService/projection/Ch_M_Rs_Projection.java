@@ -1,4 +1,4 @@
-package com.dev.restLms.pairToJuSe.MessageService.projection;
+package com.dev.restLms.juhwi.MessageService.projection;
 
 // 받은 쪽지함 관점 조회 프로젝션
 public interface Ch_M_Rs_Projection {

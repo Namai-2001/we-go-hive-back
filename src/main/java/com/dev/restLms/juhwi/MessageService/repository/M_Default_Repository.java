@@ -1,4 +1,4 @@
-package com.dev.restLms.pairToJuSe.MessageService.repository;
+package com.dev.restLms.juhwi.MessageService.repository;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 

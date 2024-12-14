@@ -1,4 +1,4 @@
-package com.dev.restLms.pairToJuSe.MessageService.projection;
+package com.dev.restLms.juhwi.MessageService.projection;
 
 public interface Ch_M_MASR_Projection {
 

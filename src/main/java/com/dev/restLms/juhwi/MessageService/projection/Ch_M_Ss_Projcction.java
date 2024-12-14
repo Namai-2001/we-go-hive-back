@@ -1,4 +1,4 @@
-package com.dev.restLms.pairToJuSe.MessageService.projection;
+package com.dev.restLms.juhwi.MessageService.projection;
 
 // 보낸 쪽지함 프로젝션
 public interface Ch_M_Ss_Projcction {
