@@ -221,14 +221,14 @@ public class VideoPlayerController {
         Optional<VideoPlayerVideo> videoPlayerVideo;
         // 해당 영상을 시청한 적이 있는 경우 => UserOwnSubjectVideo에서 해당 에피소드에 대한 정보가 있으며, 영상에서 시청 기록이 0초 이상인 경우
         if(userOwnSubjectVideo.isPresent()){
-          if(Integer.parseInt(userOwnSubjectVideo.get().getFinalLocation()) > 0){
+          if(Integer.parseInt(userOwnSubjectVideo.get().getFinalstat()) > 0){
             videoPlayerSubjectOwnVideo = videoPlayerSubjectOwnVideoRepository.findBySovOfferedSubjectsIdAndEpisodeId(userOwnSubjectVideo.get().getUosvOfferedSubjectsId(), userOwnSubjectVideo.get().getUosvEpisodeId());
             videoPlayerOfferedSubjects = videoPlayerOfferedSubjectsRepository.findById(offeredSubjectsId);
             videoPlayerUser = videoPlayerUserRepository.findBySessionId(videoPlayerOfferedSubjects.get().getTeacherSessionId());
             videoPlayerVideo = videoPlayerVideoRepository.findByVideoId(videoPlayerSubjectOwnVideo.get().getSovVideoId());
             
             resultMap.put("progress", userOwnSubjectVideo.get().getProgress());
-            resultMap.put("final", userOwnSubjectVideo.get().getFinalLocation());
+            resultMap.put("final", userOwnSubjectVideo.get().getFinalstat());
             resultMap.put("teacherName", videoPlayerUser.get().getUserName());
             resultMap.put("videoLink", videoPlayerVideo.get().getVideoLink());
             resultMap.put("vidTitle", videoPlayerVideo.get().getVideoTitle());
@@ -240,7 +240,7 @@ public class VideoPlayerController {
           // -- 이전 UserOwnSubjectVideo의 progress가 100이상이면 Ok sortIdx 값 -1 한 영상 항목의 값과 비교를 해도 됨
           // 해당 영상이 처음인 경우 => 바로 삽입(수강을 신청할 때에 해당 과정을 듣는 사용자가 포함된 개설 과목에 대한 정보를 사용하여 UserOwnSubjectVideo 레코드도 finalLocation의 값이 0으로 삽입됨)
           // => 영상이 처음인 경우는 finalLocation값이 0(디폴트)이면서 해당 영상의 sortIndex값이 1이다(1회차)
-          if(Integer.parseInt(userOwnSubjectVideo.get().getFinalLocation()) == 0 &&
+          if(Integer.parseInt(userOwnSubjectVideo.get().getFinalstat()) == 0 &&
             Integer.parseInt(videoPlayerSubjectOwnVideoRepository.findBySovOfferedSubjectsIdAndEpisodeId(offeredSubjectsId, episodeId).get().getVideoSortIndex()) == 1){
             // sortIdx를 추출하기 위함
             // Optional<VideoPlayerSubjectOwnVideo> videoPlayerSubjectOwnVideoCurrent = videoPlayerSubjectOwnVideoRepository.findBySovOfferedSubjectsIdAndEpisodeId(offeredSubjectsId, episodeId);
@@ -251,7 +251,7 @@ public class VideoPlayerController {
               videoPlayerUser = videoPlayerUserRepository.findBySessionId(videoPlayerOfferedSubjects.get().getTeacherSessionId());
               videoPlayerVideo = videoPlayerVideoRepository.findByVideoId(videoPlayerSubjectOwnVideo.get().getSovVideoId());
               resultMap.put("progress", userOwnSubjectVideo.get().getProgress());
-              resultMap.put("final", userOwnSubjectVideo.get().getFinalLocation());
+              resultMap.put("final", userOwnSubjectVideo.get().getFinalstat());
               resultMap.put("teacherName", videoPlayerUser.get().getUserName());
               resultMap.put("videoLink", videoPlayerVideo.get().getVideoLink());
               resultMap.put("vidTitle", videoPlayerVideo.get().getVideoTitle());
@@ -275,7 +275,7 @@ public class VideoPlayerController {
                     videoPlayerUser = videoPlayerUserRepository.findBySessionId(videoPlayerOfferedSubjects.get().getTeacherSessionId());
                     videoPlayerVideo = videoPlayerVideoRepository.findByVideoId(videoPlayerSubjectOwnVideo.get().getSovVideoId());
                     resultMap.put("progress", userOwnSubjectVideo.get().getProgress());
-                    resultMap.put("final", userOwnSubjectVideo.get().getFinalLocation());
+                    resultMap.put("final", userOwnSubjectVideo.get().getFinalstat());
                     resultMap.put("teacherName", videoPlayerUser.get().getUserName());
                     resultMap.put("videoLink", videoPlayerVideo.get().getVideoLink());
                     resultMap.put("vidTitle", videoPlayerVideo.get().getVideoTitle());
@@ -317,12 +317,12 @@ public class VideoPlayerController {
        
         // 특정 과목의 영상에서 영상의 최대 위치보다 유저가 현재 시청하고 있는 시점이 미치지 못한 경우 -> 업데이트
         // 기존에 시청했던 위치보다 더 앞의 위치를 시청하는 경우 -> 업데이트
-        if(Integer.parseInt(videoPlayerVideo.get().getMax()) > Integer.parseInt(userOwnSubjectVideo.get().getFinalLocation()) && Integer.parseInt(userOwnSubjectVideo.get().getFinalLocation()) < Integer.parseInt(runningTimeDTO.getFinalLocation())){
-          userOwnSubjectVideo.get().setFinalLocation(runningTimeDTO.getFinalLocation());
+        if(Integer.parseInt(videoPlayerVideo.get().getMax()) > Integer.parseInt(userOwnSubjectVideo.get().getFinalstat()) && Integer.parseInt(userOwnSubjectVideo.get().getFinalstat()) < Integer.parseInt(runningTimeDTO.getFinalLocation())){
+          userOwnSubjectVideo.get().setFinalstat(runningTimeDTO.getFinalLocation());
           // 해당 과목에 대한 영상 진행도 업데이트
           userOwnSubjectVideo.get().setProgress(Double.toString( Math.ceil(Integer.parseInt(runningTimeDTO.getFinalLocation()) / (double)Integer.parseInt(videoPlayerVideo.get().getMax()) * 100)));
           videoPlayerUserOwnSubjectVideoRepository.save(userOwnSubjectVideo.get());
         }
-        return Integer.parseInt(userOwnSubjectVideo.get().getFinalLocation()); // 갱신된 final 값
+        return Integer.parseInt(userOwnSubjectVideo.get().getFinalstat()); // 갱신된 final 값
       }
 }

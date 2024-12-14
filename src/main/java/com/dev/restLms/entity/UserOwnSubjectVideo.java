@@ -27,7 +27,7 @@ public class UserOwnSubjectVideo {
   private String progress;
 
   @Column(name = "final")
-  private String finalLocation;
+  private String finalstat;
 
   @PrePersist
   public void generateUUID() {
