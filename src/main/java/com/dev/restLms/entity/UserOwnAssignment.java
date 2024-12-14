@@ -24,7 +24,7 @@ public class UserOwnAssignment {
 
     private String userSessionId;
     private String offeredSubjectsId;
-    private String subjectAcceptCartegory;
+    private String subjectAcceptCategory;
 
     @PrePersist
     public void generateUUID() {
