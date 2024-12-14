@@ -1,18 +1,18 @@
-package com.dev.restLms.pairToJuSe.MessageService.controller;
+package com.dev.restLms.juhwi.MessageService.controller;
 
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.dev.restLms.entity.Message;
-import com.dev.restLms.pairToJuSe.MessageService.projection.Ch_M_MASR_Projection;
-import com.dev.restLms.pairToJuSe.MessageService.projection.Ch_M_MSR_Projection;
-import com.dev.restLms.pairToJuSe.MessageService.projection.Ch_M_Rs_Projection;
-import com.dev.restLms.pairToJuSe.MessageService.projection.Ch_M_Ss_Projcction;
-import com.dev.restLms.pairToJuSe.MessageService.repository.Ch_M_MASR_Repository;
-import com.dev.restLms.pairToJuSe.MessageService.repository.Ch_M_MSR_Repository;
-import com.dev.restLms.pairToJuSe.MessageService.repository.Ch_M_Rs_Repository;
-import com.dev.restLms.pairToJuSe.MessageService.repository.Ch_M_Ss_Repository;
-import com.dev.restLms.pairToJuSe.MessageService.repository.M_Default_Repository;
+import com.dev.restLms.juhwi.MessageService.projection.Ch_M_MASR_Projection;
+import com.dev.restLms.juhwi.MessageService.projection.Ch_M_MSR_Projection;
+import com.dev.restLms.juhwi.MessageService.projection.Ch_M_Rs_Projection;
+import com.dev.restLms.juhwi.MessageService.projection.Ch_M_Ss_Projcction;
+import com.dev.restLms.juhwi.MessageService.repository.Ch_M_MASR_Repository;
+import com.dev.restLms.juhwi.MessageService.repository.Ch_M_MSR_Repository;
+import com.dev.restLms.juhwi.MessageService.repository.Ch_M_Rs_Repository;
+import com.dev.restLms.juhwi.MessageService.repository.Ch_M_Ss_Repository;
+import com.dev.restLms.juhwi.MessageService.repository.M_Default_Repository;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
