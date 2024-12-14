@@ -17,5 +17,5 @@ public class VideoPlayerUserOwnSubjectVideo {
   private String uosvEpisodeId;
   private String uosvOfferedSubjectsId;
   private String progress;
-  private String finalLocation;
+  private String finalstat;
 }
