@@ -32,7 +32,6 @@ public class User {
   private String currentConnection;
   private String socialKeyValue;
   private String unsubscribe;
-  private String permissionId;
   private String fileNo;
   private String seqNo;
 
