@@ -186,7 +186,8 @@ public class OP_Controller {
         List<Map<String, String>> result = new ArrayList<>();
 
         for (UserOwnCourse userCourse : userCourses) {
-            String courseId = userCourse.getCourseId();
+            if(!userCourse.getCourseApproval().equals("T")){
+                String courseId = userCourse.getCourseId();
 
             // 과정 이름 조회
             List<C_Projection> courseTitleProjections = c_repository.findByCourseId(courseId);
@@ -213,11 +214,13 @@ public class OP_Controller {
                 User teacher = u_repository.findById(os.getTeacherSessionId()).orElse(null);
                 subjectDetails.put("teacherName", teacher != null ? teacher.getUserName() : "강사 정보 없음");
 
+                // 개설 과목 ID 추가
+                subjectDetails.put("offeredSubjectsId", os.getOfferedSubjectsId());
+
                 result.add(subjectDetails);
             }
+            }
         }
-
         return result;
     }
-
 }

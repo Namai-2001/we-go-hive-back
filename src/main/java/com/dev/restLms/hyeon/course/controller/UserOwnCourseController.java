@@ -1,5 +1,7 @@
 package com.dev.restLms.hyeon.course.controller;
 
+import java.util.List;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -24,10 +26,10 @@ public class UserOwnCourseController {
 
     @GetMapping("/{sessionId}")
     @Operation(summary = "특정 사용자 과정 조회", description = "주어진 SESSION_ID로 사용자의 과정을 조회합니다.")
-    public ResponseEntity<UserOwnCourse> getUserOwnCourseById(
+    public ResponseEntity<?> getUserOwnCourseById(
             @Parameter(description = "조회할 사용자의 SESSION_ID", required = true) 
-            @PathVariable("sessionId") String sessionId) {
-    	UserOwnCourse userOwnCourse = userOwnCourseRepository.findBysessionId(sessionId);
+            @PathVariable String sessionId) {
+    	List<UserOwnCourse> userOwnCourse = userOwnCourseRepository.findBysessionId(sessionId);
     	if(userOwnCourse == null) {
         	return ResponseEntity.notFound().build();
         }
