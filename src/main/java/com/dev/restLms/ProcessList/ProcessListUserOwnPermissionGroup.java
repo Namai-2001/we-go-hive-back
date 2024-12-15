@@ -1,20 +1,9 @@
 package com.dev.restLms.ProcessList;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+public interface ProcessListUserOwnPermissionGroup {
 
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
-public class ProcessListUserOwnPermissionGroup {
+     String getPermissionGroupUuid2();
 
-    private String permissionGroupUuid2;
-
-    private String sessionId;
+     String getSessionId();
     
 }

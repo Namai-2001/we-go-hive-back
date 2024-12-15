@@ -1,24 +1,13 @@
 package com.dev.restLms.ProcessList;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+public interface ProcessListUserOwnAssignment {
 
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
-public class ProcessListUserOwnAssignment {
-
-    private String increaseId;
+     String getIncreaseId();
     
-    private String userSessionId;
+     String getUserSessionId();
 
-    private String offeredSubjectsId;
+     String getOfferedSubjectsId();
 
-    private String subjectAcceptCartegory;
+     String getSubjectAcceptCategory();
     
 }

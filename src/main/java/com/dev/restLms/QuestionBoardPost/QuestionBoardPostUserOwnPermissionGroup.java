@@ -1,20 +1,9 @@
 package com.dev.restLms.QuestionBoardPost;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+public interface QuestionBoardPostUserOwnPermissionGroup {
 
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
-public class QuestionBoardPostUserOwnPermissionGroup {
+     String getPermissionGroupUuid2();
 
-    private String permissionGroupUuid2;
-
-    private String sessionId;
+     String getSessionId();
     
 }

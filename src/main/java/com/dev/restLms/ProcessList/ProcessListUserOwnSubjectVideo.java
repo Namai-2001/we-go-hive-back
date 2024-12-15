@@ -1,24 +1,13 @@
 package com.dev.restLms.ProcessList;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+public interface ProcessListUserOwnSubjectVideo {
+     String getIncreaseId();
 
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
-public class ProcessListUserOwnSubjectVideo {
-    private String increaseId;
+     String getUosvSessionId();
 
-    private String uosvSessionId;
+     String getUosvEpisodeId();
 
-    private String uosvEpisodeId;
+     String getUosvOfferedSubjectsId();
 
-    private String uosvOfferedSubjectsId;
-
-    private String progress;
+     String getProgress();
 }

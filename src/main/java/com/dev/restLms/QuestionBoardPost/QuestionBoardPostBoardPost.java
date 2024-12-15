@@ -1,32 +1,21 @@
 package com.dev.restLms.QuestionBoardPost;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+public interface QuestionBoardPostBoardPost {
 
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
-public class QuestionBoardPostBoardPost {
+     String getPostId();
 
-    private String postId;
+     String getAuthorNickname();
 
-    private String authorNickname;
+     String getCreatedDate();
 
-    private String createdDate;
+     String getTitle();
 
-    private String title;
+     String getContent();
 
-    private String content;
+     String getBoardId();
 
-    private String boardId;
+     String getSessionId();
 
-    private String sessionId;
-
-    private String isNotice;
+     String getIsNotice();
 
 }
