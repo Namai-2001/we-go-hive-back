@@ -149,9 +149,9 @@ public class Ch_Controller {
             // String progressString = Integer.toString(progressPercentage);
 
             Map<String, String> infoDetails = new HashMap<>();
+            infoDetails.put("episodeId", sovProjection.getEpisodeId());
             infoDetails.put("title", sovProjection.getVideoSortIndex() + "회차");
             // infoDetails.put("sovVideoId", sovProjection.getSovVideoId());
-            // infoDetails.put("episodeId", sovProjection.getEpisodeId());
             // infoDetails.put("videoLink", vProjection.getVideoLink());
             infoDetails.put("image", vProjection.getVideoImg());
             infoDetails.put("description", vProjection.getVideoTitle());
