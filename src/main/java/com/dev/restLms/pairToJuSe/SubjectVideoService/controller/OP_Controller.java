@@ -213,6 +213,9 @@ public class OP_Controller {
                 User teacher = u_repository.findById(os.getTeacherSessionId()).orElse(null);
                 subjectDetails.put("teacherName", teacher != null ? teacher.getUserName() : "강사 정보 없음");
 
+                // 개설 과목 ID 추가
+                subjectDetails.put("offeredSubjectsId", os.getOfferedSubjectsId());
+
                 result.add(subjectDetails);
             }
         }
