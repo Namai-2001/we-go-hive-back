@@ -28,7 +28,7 @@ public class UserOwnCourseController {
     @Operation(summary = "특정 사용자 과정 조회", description = "주어진 SESSION_ID로 사용자의 과정을 조회합니다.")
     public ResponseEntity<?> getUserOwnCourseById(
             @Parameter(description = "조회할 사용자의 SESSION_ID", required = true) 
-            @PathVariable String sessionId) {
+            @PathVariable("sessionId") String sessionId) {
     	List<UserOwnCourse> userOwnCourse = userOwnCourseRepository.findBysessionId(sessionId);
     	if(userOwnCourse == null) {
         	return ResponseEntity.notFound().build();
