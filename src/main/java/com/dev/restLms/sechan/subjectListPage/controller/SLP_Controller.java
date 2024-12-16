@@ -51,6 +51,7 @@ public class SLP_Controller {
         List<Map<String, String>> result = new ArrayList<>();
         for (S_Projection projection : projections) {
             Map<String, String> subjectInfo = new HashMap<>();
+            subjectInfo.put("subjectId", projection.getSubjectId());
             subjectInfo.put("subjectName", projection.getSubjectName());
             subjectInfo.put("subjectDesc", projection.getSubjectDesc());
             subjectInfo.put("subjectImage", projection.getSubjectImageLink());
@@ -107,10 +108,12 @@ public class SLP_Controller {
             // 과목 정보 조회
             Subject subject = slp_s_repository.findById(os.getSubjectId()).orElse(null);
             if (subject != null) {
+                details.put("subjectId", subject.getSubjectId());
                 details.put("subjectName", subject.getSubjectName());
                 details.put("subjectDesc", subject.getSubjectDesc());
                 details.put("subjectImage", subject.getSubjectImageLink());
             } else {
+                details.put("subjectId", "과목 아이디 없음");
                 details.put("subjectName", "과목 이름 없음");
                 details.put("subjectDesc", "과목 설명 없음");
                 details.put("subjectImage", "이미지 없음");
