@@ -264,12 +264,7 @@ public class VideoPlayerController {
       else {
         Optional<VideoPlayerSubjectOwnVideo> videoPlayerSubjectOwnVideoCurrent = videoPlayerSubjectOwnVideoRepository
             .findBySovOfferedSubjectsIdAndEpisodeId(offeredSubjectsId, episodeId);
-        Integer inputSortIndex = Integer.parseInt(videoPlayerSubjectOwnVideoCurrent.get().getVideoSortIndex()); // 수강을
-                                                                                                                // 원하는
-                                                                                                                // 과목에
-                                                                                                                // 대한
-                                                                                                                // SortIndex
-                                                                                                                // 3일거야
+        Integer inputSortIndex = Integer.parseInt(videoPlayerSubjectOwnVideoCurrent.get().getVideoSortIndex());
         for (VideoPlayerSubjectOwnVideo subjectOwnVideo : videoPlayerSubjectOwnVideoTotal) {
           // 전 과목과 비교
           if (Integer.parseInt(subjectOwnVideo.getVideoSortIndex()) == inputSortIndex - 1) {
