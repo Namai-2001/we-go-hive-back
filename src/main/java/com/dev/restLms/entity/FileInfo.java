@@ -1,11 +1,6 @@
 package com.dev.restLms.entity;
 
-import java.util.UUID;
-
-import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import lombok.AllArgsConstructor;
@@ -22,7 +17,6 @@ import lombok.Setter;
 @AllArgsConstructor
 public class FileInfo {
   @Id
-  @GeneratedValue(strategy = GenerationType.UUID) // 기본 키
   private String fileNo;
   
   private Integer seqNo;
@@ -30,7 +24,8 @@ public class FileInfo {
   private String filePath;
   private String fileSize;
   private String uploadDt;
-
+  private String encFileNm;
+  private String uploaderSessionId;
     @PrePersist
     public void prePersistSeqNo() {
         if (this.seqNo == null) {
