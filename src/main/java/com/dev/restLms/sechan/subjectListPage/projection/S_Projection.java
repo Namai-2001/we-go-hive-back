@@ -5,4 +5,5 @@ public interface S_Projection {
     String getSubjectDesc();
     String getSubjectCategory();
     String getSubjectImageLink();
+    String getSubjectId();
 }
