@@ -1,6 +1,8 @@
 package com.dev.restLms.HomePage.controller;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -30,8 +32,8 @@ public class HomeController {
   @Autowired
   HomeVideoRepository homeVideoRepository;
 
-  // @GetMapping("/RandSubjectVid")
-  // public ResponseEntity<?> randSubjectVid() {
-
-  // }
+  @GetMapping("/RandSubjectVid")
+  public ResponseEntity<?> randSubjectVid() {
+    return ResponseEntity.ok(homeOfferedSubjectRepository.findByCourseIdIsNull());
+  }
 }
