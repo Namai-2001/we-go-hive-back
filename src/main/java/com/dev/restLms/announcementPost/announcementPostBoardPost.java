@@ -1,23 +1,15 @@
-package com.dev.restLms.announcement;
+package com.dev.restLms.announcementPost;
 
-public interface announcementBoardPost {
-    
+public interface announcementPostBoardPost {
+
     String getPostId();
 
     String getAuthorNickname();
-
     String getCreatedDate();
-
     String getTitle();
-
     String getContent();
-
-    String getBoardId();
-
     String getSessionId();
-
     String getIsNotice();
-
     String getFileNo();
-
+    
 }

@@ -1,23 +1,14 @@
-package com.dev.restLms.announcement;
+package com.dev.restLms.FreeBulletinBoardPost;
 
-public interface announcementBoardPost {
-    
+public interface FreeBulletinBoardPosts {
+
     String getPostId();
 
     String getAuthorNickname();
-
     String getCreatedDate();
-
     String getTitle();
-
     String getContent();
-
-    String getBoardId();
-
     String getSessionId();
-
-    String getIsNotice();
-
     String getFileNo();
-
+    
 }
