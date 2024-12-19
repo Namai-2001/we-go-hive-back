@@ -63,7 +63,7 @@ public class AssignmentPageController {
   @Autowired
   private AssignmentPageFileInfoRepository filePepo;
 
-  private static final String ROOT_DIR = "WeGoHiveFile/";
+  private static final String ROOT_DIR = "src/main/resources/static/";
   private static final String UPLOAD_DIR = "Subject/";
   private static final long MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB (바이트 단위)
     

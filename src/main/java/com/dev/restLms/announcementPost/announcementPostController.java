@@ -12,7 +12,10 @@ import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.UrlResource;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -28,6 +31,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 
 
 
@@ -51,7 +55,7 @@ public class announcementPostController {
     @Autowired
     AnnouncementPostFileInfoRepository announcementPostFileInfoRepository;
 
-    private static final String ROOT_DIR = "WeGoHiveFile/";
+    private static final String ROOT_DIR = "src/main/resources/static/";
     private static final String UPLOAD_DIR = "Board/";
     private static final String BOARD_DIR = "NoticeBoard/";
     private static final long MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB (바이트 단위)
@@ -324,7 +328,7 @@ public class announcementPostController {
                     // 이미지 표시 URL 생성
                     String orgFileNm = fileInfo.getOrgFileNm();
                     if (orgFileNm != null && (orgFileNm.endsWith(".jpg") || orgFileNm.endsWith(".jpeg") || orgFileNm.endsWith(".png"))) {
-                        String imageUrl = "/images/" + fileInfo.getFileNo(); // 이미지 URL
+                        String imageUrl = fileInfo.getFileNo(); // 이미지 URL
                         post.put("imageUrl", imageUrl); // 이미지 URL 추가
                     }else{
                         // 파일 다운로드 URL 생성
@@ -403,6 +407,28 @@ public class announcementPostController {
             return ResponseEntity.status(HttpStatus.CONFLICT).body("오류 발생: " + e.getMessage());
         }
     }
+    @GetMapping("/images/{fileNo:.+}")
+    public ResponseEntity<Resource> getImage(@PathVariable String fileNo) {
+    try {
+        Optional<FileInfo> fileInfoOptional = announcementPostFileInfoRepository.findByFileNo(fileNo);
+        if (!fileInfoOptional.isPresent()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
+        }
 
+        FileInfo fileInfo = fileInfoOptional.get();
+        Path filePath = Paths.get(fileInfo.getFilePath() + fileInfo.getEncFileNm());
+        Resource resource = new UrlResource(filePath.toUri());
+
+        if (resource.exists() || resource.isReadable()) {
+            return ResponseEntity.ok()
+                    .contentType(MediaType.IMAGE_JPEG) // 이미지 형식에 맞게 설정
+                    .body(resource);
+        } else {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
+        }
+    } catch (Exception e) {
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+    }
+}
     
 }

@@ -106,7 +106,7 @@ public class announcementController {
                 String orgFileNm = fileInfo.getOrgFileNm();
     
                 if (orgFileNm != null && (orgFileNm.endsWith(".jpg") || orgFileNm.endsWith(".jpeg") || orgFileNm.endsWith(".png"))) {
-                    String imageUrl = "/images/" + fileInfo.getFileNo(); // 이미지 URL
+                    String imageUrl = fileInfo.getFileNo(); // 이미지 URL
                     Map<String, Object> img = new HashMap<>();
                     img.put("imageUrl", imageUrl);
                     img.put("postId", findNoticePost.getPostId());
@@ -134,9 +134,4 @@ public class announcementController {
     
         return ResponseEntity.ok().body(response);
     }
-    
-    
-    
-    
-    
 }
