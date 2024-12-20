@@ -105,15 +105,16 @@ public class SLP_Controller {
         for (OfferedSubjects os : offeredSubjectsList) {
             Map<String, String> details = new HashMap<>();
 
+            // OfferedSubjects ID 추가
+            details.put("offeredSubjectsId", os.getOfferedSubjectsId());
+
             // 과목 정보 조회
             Subject subject = slp_s_repository.findById(os.getSubjectId()).orElse(null);
             if (subject != null) {
-                details.put("subjectId", subject.getSubjectId());
                 details.put("subjectName", subject.getSubjectName());
                 details.put("subjectDesc", subject.getSubjectDesc());
                 details.put("subjectImage", subject.getSubjectImageLink());
             } else {
-                details.put("subjectId", "과목 아이디 없음");
                 details.put("subjectName", "과목 이름 없음");
                 details.put("subjectDesc", "과목 설명 없음");
                 details.put("subjectImage", "이미지 없음");
