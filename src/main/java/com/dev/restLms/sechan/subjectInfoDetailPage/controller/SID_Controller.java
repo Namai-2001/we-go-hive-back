@@ -1,25 +1,23 @@
 package com.dev.restLms.sechan.subjectInfoDetailPage.controller;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.dev.restLms.entity.OfferedSubjects;
 import com.dev.restLms.entity.UserOwnAssignment;
-import com.dev.restLms.sechan.subjectInfoDetailPage.projection.SID_CourseCheck_Projection;
 import com.dev.restLms.sechan.subjectInfoDetailPage.projection.SID_S_Projection;
 import com.dev.restLms.sechan.subjectInfoDetailPage.projection.SID_U_Projection;
 import com.dev.restLms.sechan.subjectInfoDetailPage.repository.SID_OS_Repository;
 import com.dev.restLms.sechan.subjectInfoDetailPage.repository.SID_S_Repository;
 import com.dev.restLms.sechan.subjectInfoDetailPage.repository.SID_UOA_Repository;
-import com.dev.restLms.sechan.subjectInfoDetailPage.repository.SID_UOC_Repository;
 import com.dev.restLms.sechan.subjectInfoDetailPage.repository.SID_U_Repository;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -38,9 +36,12 @@ public class SID_Controller {
     @Autowired
     private SID_U_Repository sid_u_repository;
 
+    @Autowired
+    private SID_UOA_Repository sid_uoa_repository;
+
     @GetMapping("/subjectInfoDetail/{offeredSubjectsId}")
     @Operation(summary = "특정 개설 과목 조회", description = "개설이 완료된 특정 과목의 세부 정보를 조회합니다.")
-    public Map<String, String> getSubjectDetails(@PathVariable String offeredSubjectsId) {
+    public Map<String, String> getSubjectDetails(@RequestParam String offeredSubjectsId) {
         // 1. 개설 과목(OfferedSubjects) 정보 조회
         Optional<OfferedSubjects> offeredSubjectOpt = sid_os_repository.findById(offeredSubjectsId);
         if (offeredSubjectOpt.isEmpty()) {
@@ -72,56 +73,90 @@ public class SID_Controller {
         return subjectDetails;
     }
 
-    @Autowired
-    private SID_UOC_Repository sid_uoc_repository;
+    // @Autowired
+    // private SID_UOC_Repository sid_uoc_repository;
 
-    @Autowired
-    private SID_UOA_Repository sid_uoa_repository;
+    // @Autowired
+    // private SID_UOA_Repository sid_uoa_repository;
+
+    // @PostMapping("/subjectenroll/{userSessionId}/{offeredSubjectsId}")
+    // @Operation(summary = "수강 신청", description = "사용자가 특정 개설 과목을 수강 신청합니다.")
+    // public Map<String, String> applySubject(
+    //         @RequestParam String userSessionId,
+    //         @RequestParam String offeredSubjectsId) {
+
+    //     Map<String, String> response = new HashMap<>();
+
+    //     // 1. 개설 과목(OfferedSubjects) 정보 확인
+    //     Optional<OfferedSubjects> offeredSubjectOpt = sid_os_repository.findById(offeredSubjectsId);
+    //     if (offeredSubjectOpt.isEmpty()) {
+    //         response.put("status", "fail");
+    //         response.put("message", "해당 개설 과목이 존재하지 않습니다.");
+    //         return response;
+    //     }
+
+    //     OfferedSubjects offeredSubject = offeredSubjectOpt.get();
+
+    //     // 2. 사용자가 이미 등록한 과목 확인
+    //     if (sid_uoa_repository.findByUserSessionIdAndOfferedSubjectsId(userSessionId, offeredSubjectsId).isPresent()) {
+    //         response.put("status", "fail");
+    //         response.put("message", "이미 신청한 과목입니다.");
+    //         return response;
+    //     }
+
+    //     // 3. 사용자가 해당 과정에 등록했는지 확인
+    //     List<SID_CourseCheck_Projection> userCourses = sid_uoc_repository.findBySessionId(userSessionId);
+    //     for (SID_CourseCheck_Projection course : userCourses) {
+    //         if (course.getCourseId().equals(offeredSubject.getCourseId())) {
+    //             response.put("status", "fail");
+    //             response.put("message", "이미 해당 과정에 등록되어 있는 상태입니다.");
+    //             return response;
+    //         }
+    //     }
+
+    //     // 4. 수강 신청 처리
+    //     UserOwnAssignment newAssignment = UserOwnAssignment.builder()
+    //             .userSessionId(userSessionId)
+    //             .offeredSubjectsId(offeredSubjectsId)
+    //             .build();
+
+    //     sid_uoa_repository.save(newAssignment);
+    //     response.put("status", "success");
+    //     response.put("message", "수강 신청이 완료되었습니다.");
+    //     return response;
+    // }
 
     @PostMapping("/subjectenroll/{userSessionId}/{offeredSubjectsId}")
     @Operation(summary = "수강 신청", description = "사용자가 특정 개설 과목을 수강 신청합니다.")
-    public Map<String, String> applySubject(
-            @PathVariable String userSessionId,
-            @PathVariable String offeredSubjectsId) {
+    public ResponseEntity<String> enrollSubject(
+            @RequestParam String userSessionId,
+            @RequestParam String offeredSubjectsId) {
 
-        Map<String, String> response = new HashMap<>();
+        // 중복 신청 방지: 동일한 과목(offeredSubjectsId)이 'F'로 이미 등록된 경우
+        Optional<UserOwnAssignment> existingAssignmentF = sid_uoa_repository.findByUserSessionIdAndOfferedSubjectsIdAndSubjectAcceptCategory(
+                userSessionId, offeredSubjectsId, "F");
 
-        // 1. 개설 과목(OfferedSubjects) 정보 확인
-        Optional<OfferedSubjects> offeredSubjectOpt = sid_os_repository.findById(offeredSubjectsId);
-        if (offeredSubjectOpt.isEmpty()) {
-            response.put("status", "fail");
-            response.put("message", "해당 개설 과목이 존재하지 않습니다.");
-            return response;
+        if (existingAssignmentF.isPresent()) {
+            return ResponseEntity.badRequest().body("이미 과정에 등록되어 있습니다.");
         }
 
-        OfferedSubjects offeredSubject = offeredSubjectOpt.get();
+        // 중복 신청 방지: 동일한 과목(offeredSubjectsId)이 'T'로 이미 등록된 경우
+        Optional<UserOwnAssignment> existingAssignmentT = sid_uoa_repository.findByUserSessionIdAndOfferedSubjectsIdAndSubjectAcceptCategory(
+                userSessionId, offeredSubjectsId, "T");
 
-        // 2. 사용자가 이미 등록한 과목 확인
-        if (sid_uoa_repository.findByUserSessionIdAndOfferedSubjectsId(userSessionId, offeredSubjectsId).isPresent()) {
-            response.put("status", "fail");
-            response.put("message", "이미 신청한 과목입니다.");
-            return response;
+        if (existingAssignmentT.isPresent()) {
+            return ResponseEntity.badRequest().body("이미 신청한 과목입니다.");
         }
 
-        // 3. 사용자가 해당 과정에 등록했는지 확인
-        List<SID_CourseCheck_Projection> userCourses = sid_uoc_repository.findBySessionId(userSessionId);
-        for (SID_CourseCheck_Projection course : userCourses) {
-            if (course.getCourseId().equals(offeredSubject.getCourseId())) {
-                response.put("status", "fail");
-                response.put("message", "이미 해당 과정에 등록되어 있는 상태입니다.");
-                return response;
-            }
-        }
-
-        // 4. 수강 신청 처리
+        // 새로운 과목 신청: subjectAcceptCategory는 항상 'T'
         UserOwnAssignment newAssignment = UserOwnAssignment.builder()
                 .userSessionId(userSessionId)
                 .offeredSubjectsId(offeredSubjectsId)
+                .subjectAcceptCategory("T")
                 .build();
 
-        sid_uoa_repository.save(newAssignment);
-        response.put("status", "success");
-        response.put("message", "수강 신청이 완료되었습니다.");
-        return response;
+                sid_uoa_repository.save(newAssignment);
+        return ResponseEntity.ok("과목 신청이 완료되었습니다.");
     }
 }
+

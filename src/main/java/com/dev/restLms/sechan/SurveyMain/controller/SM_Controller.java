@@ -96,6 +96,10 @@ public class SM_Controller {
             if (surveyExecutionOpt.isPresent()) {
                 SurveyExecution surveyExecution = surveyExecutionOpt.get();
 
+                // 설문 완료 여부 확인
+                boolean isSurveyCompleted = sm_sor_repository.existsBySurveyExecutionIdAndSessionId(
+                        surveyExecution.getSurveyExecutionId(), sessionId);
+
                 String courseApproval = "F";
                 for (SM_UOC_Projection userCourse : userCourses) {
                     if (userCourse.getCourseId().equals(course.getCourseId())) {
@@ -105,8 +109,11 @@ public class SM_Controller {
                 }
 
                 String courseEndDate = course.getCourseEndDate();
-                String surveyStatus = ("T".equals(courseApproval)
-                        && (courseEndDate == null || courseEndDate.compareTo(today) >= 0)) ? "T" : "F";
+                String surveyStatus = isSurveyCompleted
+                        ? "F"
+                        : ("T".equals(courseApproval) && (courseEndDate == null || courseEndDate.compareTo(today) >= 0))
+                                ? "T"
+                                : "F";
 
                 Map<String, Object> courseData = new HashMap<>();
                 courseData.put("courseId", course.getCourseId());
@@ -143,6 +150,10 @@ public class SM_Controller {
             if (surveyExecutionOpt.isPresent()) {
                 SurveyExecution surveyExecution = surveyExecutionOpt.get();
 
+                // 설문 완료 여부 확인
+                boolean isSurveyCompleted = sm_sor_repository.existsBySurveyExecutionIdAndSessionId(
+                        surveyExecution.getSurveyExecutionId(), sessionId);
+
                 boolean allCompleted = videos.stream()
                         .allMatch(video -> Integer.parseInt(video.getProgress()) >= 100);
 
@@ -158,10 +169,13 @@ public class SM_Controller {
                     }
                 }
 
+                String surveyAvailable = isSurveyCompleted ? "F" : (allCompleted ? "T" : "F");
+
                 Map<String, Object> subjectData = new HashMap<>();
                 subjectData.put("offeredSubjectsId", offeredSubjectsId);
                 subjectData.put("subjectName", subjectName);
-                subjectData.put("surveyAvailable", allCompleted ? "T" : "F");
+                subjectData.put("surveyAvailable", surveyAvailable);
+                subjectData.put("isSurveyCompleted", isSurveyCompleted ? "T" : "F");
                 subjectData.put("surveyExecutionId", surveyExecution.getSurveyExecutionId());
 
                 subjectResponse.add(subjectData);
@@ -189,11 +203,14 @@ public class SM_Controller {
 
         for (SM_C_Projection course : courses) {
             Map<String, Object> courseData = new HashMap<>();
-            Optional<SurveyExecution> surveyExecutionOpt = sm_se_repository
-                    .findByCourseId(course.getCourseId());
+            Optional<SurveyExecution> surveyExecutionOpt = sm_se_repository.findByCourseId(course.getCourseId());
 
             if (surveyExecutionOpt.isPresent()) {
                 SurveyExecution surveyExecution = surveyExecutionOpt.get();
+
+                // 설문 완료 여부 확인
+                boolean isSurveyCompleted = sm_sor_repository.existsBySurveyExecutionIdAndSessionId(
+                        surveyExecution.getSurveyExecutionId(), sessionId);
 
                 String courseApproval = "F";
                 for (SM_UOC_Projection userCourse : userCourses) {
@@ -203,16 +220,18 @@ public class SM_Controller {
                     }
                 }
 
-                String courseEndDate = course.getCourseEndDate(); 
-                String surveyStatus = ("T".equals(courseApproval)
-                        && courseEndDate != null
-                        && courseEndDate.compareTo(today) >= 0) ? "T" : "F";
+                String courseEndDate = course.getCourseEndDate();
+                String surveyStatus = isSurveyCompleted
+                        ? "F"
+                        : ("T".equals(courseApproval) && courseEndDate != null && courseEndDate.compareTo(today) >= 0)
+                                ? "T"
+                                : "F";
 
                 String formattedCourseEndDate = courseEndDate != null ? formatDate(courseEndDate) : null;
 
                 courseData.put("courseId", course.getCourseId());
                 courseData.put("courseTitle", course.getCourseTitle());
-                courseData.put("courseEndDate", formattedCourseEndDate); // 변환된 날짜 사용
+                courseData.put("courseEndDate", formattedCourseEndDate);
                 courseData.put("courseApproval", courseApproval);
                 courseData.put("surveyStatus", surveyStatus);
                 courseData.put("surveyExecutionId", surveyExecution.getSurveyExecutionId());
@@ -220,6 +239,7 @@ public class SM_Controller {
                 courseResponse.add(courseData);
             }
         }
+
         // ------------ 과목 데이터 조회 ------------
         List<Map<String, Object>> subjectResponse = new ArrayList<>();
         List<SM_UOSV_Projection> userVideos = sm_uosv_repository.findByUosvSessionId(sessionId);
@@ -239,6 +259,10 @@ public class SM_Controller {
             if (surveyExecutionOpt.isPresent()) {
                 SurveyExecution surveyExecution = surveyExecutionOpt.get();
 
+                // 설문 완료 여부 확인
+                boolean isSurveyCompleted = sm_sor_repository.existsBySurveyExecutionIdAndSessionId(
+                        surveyExecution.getSurveyExecutionId(), sessionId);
+
                 boolean allCompleted = videos.stream()
                         .allMatch(video -> Integer.parseInt(video.getProgress()) >= 100);
 
@@ -256,10 +280,13 @@ public class SM_Controller {
                     }
                 }
 
+                String surveyAvailable = isSurveyCompleted ? "F" : (allCompleted ? "T" : "F");
+
                 Map<String, Object> subjectData = new HashMap<>();
                 subjectData.put("offeredSubjectsId", offeredSubjectsId);
                 subjectData.put("subjectName", subjectName);
-                subjectData.put("surveyAvailable", allCompleted ? "T" : "F");
+                subjectData.put("surveyAvailable", surveyAvailable);
+                subjectData.put("isSurveyCompleted", isSurveyCompleted ? "T" : "F");
                 subjectData.put("surveyExecutionId", surveyExecution.getSurveyExecutionId());
 
                 subjectResponse.add(subjectData);
