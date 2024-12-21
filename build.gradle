@@ -1,30 +1,30 @@
 plugins {
-	id 'java'
-	id 'org.springframework.boot' version '3.3.6'
-	id 'io.spring.dependency-management' version '1.1.6'
+   id 'java'
+   id 'org.springframework.boot' version '3.3.6'
+   id 'io.spring.dependency-management' version '1.1.6'
 }
 
 group = 'com.dev'
 version = '0.0.6-SNAPSHOT-INIT'
 
 java {
-	toolchain {
-		languageVersion = JavaLanguageVersion.of(17)
-	}
+   toolchain {
+      languageVersion = JavaLanguageVersion.of(17)
+   }
 }
 
 configurations {
-	compileOnly {
-		extendsFrom annotationProcessor
-	}
+   compileOnly {
+      extendsFrom annotationProcessor
+   }
 }
 
 repositories {
-	mavenCentral()
+   mavenCentral()
 }
 
 ext {
-	set('snippetsDir', file("build/generated-snippets"))
+   set('snippetsDir', file("build/generated-snippets"))
 }
 
 dependencies {
@@ -35,8 +35,9 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.1.0'
 
-
-
+    implementation 'io.jsonwebtoken:jjwt-api:0.11.5'
+    implementation 'io.jsonwebtoken:jjwt-impl:0.11.5'
+    implementation 'io.jsonwebtoken:jjwt-jackson:0.11.5'
 
 
 
@@ -59,6 +60,6 @@ dependencies {
 
 
 tasks.named('test') {
-	outputs.dir snippetsDir
-	useJUnitPlatform()
+   outputs.dir snippetsDir
+   useJUnitPlatform()
 }
