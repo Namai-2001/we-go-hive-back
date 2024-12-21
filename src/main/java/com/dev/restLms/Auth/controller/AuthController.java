@@ -1,4 +1,5 @@
 package com.dev.restLms.Auth.controller;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -7,6 +8,8 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -23,8 +26,12 @@ import com.dev.restLms.entity.User;
 import com.dev.restLms.entity.UserOwnPermissionGroup;
 import com.dev.restLms.Auth.dto.LoginRequest;
 import com.dev.restLms.Auth.repository.LoginUserOwnPermissionGroupRepository;
+import com.dev.restLms.Auth.repository.LoginUserOwnPermissionGroupRepository2;
+import com.dev.restLms.Auth.repository.LoginUserPermissionRepository;
 import com.dev.restLms.Auth.repository.LoginUserRepository;
 import com.dev.restLms.Auth.service.JwtTokenProvider;
+import com.dev.restLms.Auth.projection.permissionProjection;
+import com.dev.restLms.Auth.projection.permissionUuidProjection;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -43,34 +50,53 @@ public class AuthController {
     @Autowired
     private LoginUserRepository loginUserRepository;
 
+    @Autowired
+    LoginUserOwnPermissionGroupRepository loginUserOwnPermissionGroupRepository;
+
+    @Autowired
+    LoginUserOwnPermissionGroupRepository2 loginUserOwnPermissionGroupRepository2;
+
+    @Autowired
+    LoginUserPermissionRepository loginUserPermissionRepository;
+
     @PostMapping("/login")
     @Operation(summary = "로그인", description = "로그인을 수행하는 엔드포인트 입니다.")
     public ResponseEntity<?> authenticateUser(@RequestBody LoginRequest loginRequest) {
         Optional<User> authId = loginUserRepository.findByUserId(loginRequest.getUserId());
         Optional<User> loginUser = loginUserRepository.findByUserIdAndUserPw(loginRequest.getUserId(),
                 loginRequest.getUserPw());
+                
         if (!authId.isPresent()) {
             return ResponseEntity.badRequest().body("가입된 회원이 아닙니다.");
         }
         if (!loginUser.isPresent()) {
             return ResponseEntity.badRequest().body("비밀번호가 틀렸습니다.");
         }
-
-        // 로그인 완료된 사용자
-        User authorizedUser = loginUser.get();
         
-        Authentication authentication = new UsernamePasswordAuthenticationToken(
-                // 실제 검증은 세션아이디로 이루어져서 설정
-                loginUser.get().getSessionId(),
-                loginUser.get().getUserPw());
+        // 반환되는 유저의 정보를 담는 HashMap
+        Optional<permissionUuidProjection> permissionGroupsSelect = loginUserOwnPermissionGroupRepository2.findBySessionId(loginUser.get().getSessionId());
+        if(permissionGroupsSelect.isPresent()){
+            String getPermissionUuid = permissionGroupsSelect.get().getPermissionGroupUuid2();
+            Optional<permissionProjection> permissionName = loginUserPermissionRepository.findByPermissionGroupUuid(getPermissionUuid);
+            User authorizedUser = loginUser.get();
+        
+            Authentication authentication = new UsernamePasswordAuthenticationToken(
+                    // 실제 검증은 세션아이디로 이루어져서 설정
+                    loginUser.get().getSessionId(),
+                    loginUser.get().getUserPw());
+    
+            // 인증정보 등록
+            SecurityContextHolder.getContext().setAuthentication(authentication); // 필요 없어 보임
+            String jwt = tokenProvider.generateToken(authentication); // 실제 JWT 발급하는 부분, 관리부분 결여
+            Map<String, Object> userInfo = new HashMap<>();
+            userInfo.put("nickName", authorizedUser.getNickname());
+            userInfo.put("permissionName", permissionName.get().getPermissionName());
+            userInfo.put("token", jwt);
 
-        // 인증정보 등록
-        Map<String, Object> userInfo = new HashMap<>();
-        userInfo.put("nickName", authorizedUser.getNickname());
-        userInfo.put("permissionName", authorizedUser.getUserId());
-        SecurityContextHolder.getContext().setAuthentication(authentication); // 필요 없어 보임
-        String jwt = tokenProvider.generateToken(authentication); // 실제 JWT 발급하는 부분, 관리부분 결여
-        return ResponseEntity.ok(jwt);
+            // 로그인이 완료된 사용자를 반환
+            return ResponseEntity.ok(userInfo);
+        }
+        return ResponseEntity.badRequest().body("권한이 없습니다.");
     }
 
     @GetMapping("/security/getcontext")
@@ -109,8 +135,7 @@ public class AuthController {
         return ResponseEntity.ok(user);
     }
 
-    @Autowired
-    LoginUserOwnPermissionGroupRepository loginUserOwnPermissionGroupRepository;
+
 
     @GetMapping("/security/getcontext/test")
     @Operation(summary = "인증 토큰 검증 엔드포인트", description = "JWT를 해석해서 이름만 반환하는 엔드포인트 입니다. 만료는 확인하지 않습니다.")
@@ -133,7 +158,6 @@ public class AuthController {
             grantStrings = permissionGroups.stream()
                     .map(pg -> new SimpleGrantedAuthority(pg.getPermissionGroupUuid2()))
                     .collect(Collectors.toList());
-            
         }
         // 권한 그룹이 존재하지 않는 경우
         else {

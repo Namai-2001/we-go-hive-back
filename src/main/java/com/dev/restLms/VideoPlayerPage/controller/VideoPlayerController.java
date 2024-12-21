@@ -35,6 +35,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -100,13 +102,17 @@ public class VideoPlayerController {
   @Operation(summary = "강의 플레이어에 들어갈 특정 사용자의  강의 목록")
   @GetMapping("/videoList")
   public List<Map<String, Object>> getSubjectsVideosList(
-      @Parameter(description = "사용자 고유 ID", required = true) @RequestParam String sessionId,
       @Parameter(description = "회차 번호", required = true) @RequestParam String episodeId,
       @Parameter(description = "개설 과목 코드", required = true) @RequestParam String offeredSubjectsId) {
+
+    UsernamePasswordAuthenticationToken auth = (UsernamePasswordAuthenticationToken) SecurityContextHolder
+                .getContext().getAuthentication();
+    final String userSessionId = auth.getPrincipal().toString();
+    
     List<Map<String, Object>> resultList = new ArrayList<>();
     // Optional 처리
     Optional<UserOwnSubjectVideo> userOwnSubjectVideo = videoPlayerUserOwnSubjectVideoRepository
-        .findByUosvSessionIdAndUosvEpisodeIdAndUosvOfferedSubjectsId(sessionId, episodeId, offeredSubjectsId);
+        .findByUosvSessionIdAndUosvEpisodeIdAndUosvOfferedSubjectsId(userSessionId, episodeId, offeredSubjectsId);
 
     List<VideoPlayerSubjectOwnVideo> videoList = videoPlayerSubjectOwnVideoRepository
         .findBySovOfferedSubjectsId(userOwnSubjectVideo.get().getUosvOfferedSubjectsId());
