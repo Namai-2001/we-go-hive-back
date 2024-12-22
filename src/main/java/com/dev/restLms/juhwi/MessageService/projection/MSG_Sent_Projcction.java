@@ -1,7 +1,7 @@
 package com.dev.restLms.juhwi.MessageService.projection;
 
 // 보낸 쪽지함 프로젝션
-public interface MSG_M_Sent_Projcction {
+public interface MSG_Sent_Projcction {
 
     // 쪽지 고유 키
     String getMessageId();

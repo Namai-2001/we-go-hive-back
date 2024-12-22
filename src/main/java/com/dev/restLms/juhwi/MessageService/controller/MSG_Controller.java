@@ -5,18 +5,20 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.dev.restLms.Auth.service.JwtTokenProvider;
 import com.dev.restLms.entity.Message;
-import com.dev.restLms.juhwi.MessageService.projection.MSG_M_Admin_Projection;
-import com.dev.restLms.juhwi.MessageService.projection.MSG_M_Self_Projection;
+import com.dev.restLms.juhwi.MessageService.projection.MSG_Admin_Projection;
+import com.dev.restLms.juhwi.MessageService.projection.MSG_Self_Projection;
 import com.dev.restLms.juhwi.MessageService.dto.MSG_MessagePost_DTO;
 import com.dev.restLms.juhwi.MessageService.projection.MSG_Details_Projection;
+import com.dev.restLms.juhwi.MessageService.projection.MSG_GetFriendList_Projection;
 import com.dev.restLms.juhwi.MessageService.projection.MSG_Inbox_Projection;
-import com.dev.restLms.juhwi.MessageService.projection.MSG_M_Sent_Projcction;
+import com.dev.restLms.juhwi.MessageService.projection.MSG_Sent_Projcction;
 import com.dev.restLms.juhwi.MessageService.projection.MSG_UserNickname_Projection;
 import com.dev.restLms.juhwi.MessageService.repository.MSG_Admin_Repository;
 import com.dev.restLms.juhwi.MessageService.repository.MSG_Details_Repository;
 import com.dev.restLms.juhwi.MessageService.repository.MSG_Self_Repository;
 import com.dev.restLms.juhwi.MessageService.repository.MSG_Inbox_Repository;
 import com.dev.restLms.juhwi.MessageService.repository.MSG_Sent_Repository;
+import com.dev.restLms.juhwi.MessageService.repository.MSG_GetFriendList_Repository;
 import com.dev.restLms.juhwi.MessageService.repository.MSG_UserNickname_Repository;
 import com.dev.restLms.juhwi.MessageService.repository.MSG_Entity_Repository;
 
@@ -26,6 +28,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.Date;
+import java.util.List;
 import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -39,7 +42,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
-
 
 // 마이그레이션 완료
 @Slf4j
@@ -85,7 +87,7 @@ public class MSG_Controller {
 
         @GetMapping("/sent")
         @Operation(summary = "보낸 쪽지함 조회", description = "보낸 쪽지함을 사용자 기준으로 조회, 삭제 여부 선택")
-        public Page<MSG_M_Sent_Projcction> getSentPage(
+        public Page<MSG_Sent_Projcction> getSentPage(
                         @Parameter(description = "조회 기준 T:삭제됨 F:삭제안됨", required = true) @RequestParam(defaultValue = "F") String isDelete,
 
                         @Parameter(description = "검색 파라미터", required = false) @RequestParam(defaultValue = "") String searchParam,
@@ -101,7 +103,7 @@ public class MSG_Controller {
 
                 Pageable pageable = PageRequest.of(page, size);
 
-                Page<MSG_M_Sent_Projcction> resultPage;
+                Page<MSG_Sent_Projcction> resultPage;
                 if (searchParam.equals("")) {
                         resultPage = ch_M_Ss_Repository
                                         .findBySenderDeleteAndSenderSessionIdAndReceiverSessionIdNot(isDelete,
@@ -120,7 +122,7 @@ public class MSG_Controller {
 
         @GetMapping("/self")
         @Operation(summary = "내게 쓴 쪽지함 조회", description = "보낸 쪽지함을 사용자 기준으로 조회, 삭제 여부 선택")
-        public Page<MSG_M_Self_Projection> getmySentPage(
+        public Page<MSG_Self_Projection> getmySentPage(
                         @Parameter(description = "조회 기준 T:삭제됨 F:삭제안됨", required = true) @RequestParam(defaultValue = "F") String isDelete,
 
                         @Parameter(description = "검색 파라미터", required = false) @RequestParam(defaultValue = "") String searchParam,
@@ -133,7 +135,7 @@ public class MSG_Controller {
                 // 유저 세션아이디 보안 컨텍스트에서 가져오기
                 String userSessionId = auth.getPrincipal().toString();
                 Pageable pageable = PageRequest.of(page, size);
-                Page<MSG_M_Self_Projection> resultPage;
+                Page<MSG_Self_Projection> resultPage;
                 if (searchParam.equals("")) {
                         resultPage = ch_M_MSR_Repository
                                         .findBySenderDeleteAndSenderSessionIdAndReceiverSessionId(isDelete,
@@ -153,7 +155,7 @@ public class MSG_Controller {
 
         @GetMapping("/admin")
         @Operation(summary = "관리자 공지 조회", description = "관리자가 작성한 공지를 조회, 삭제 여부 선택")
-        public Page<MSG_M_Admin_Projection> getAdminMessage(
+        public Page<MSG_Admin_Projection> getAdminMessage(
                         @Parameter(description = "권한명", required = true) @RequestParam(defaultValue = "관리자") String userReceiveSessionId,
 
                         @RequestParam(defaultValue = "0") int page,
@@ -165,7 +167,7 @@ public class MSG_Controller {
                 // 추후 그룹이 고도화 되었을 때 변경
                 String permissionGroup = "관리자";
                 String targetGroup = "모두";
-                Page<MSG_M_Admin_Projection> resultPage = ch_M_MASR_Repository
+                Page<MSG_Admin_Projection> resultPage = ch_M_MASR_Repository
                                 .findBySenderSessionIdAndReceiverSessionId(
                                                 permissionGroup, targetGroup, pageable);
                 return resultPage;
@@ -245,25 +247,35 @@ public class MSG_Controller {
          */
 
         @PostMapping("/create")
-        @Operation(summary = "사용자 기준 생성", description = "사용자 관점의 TF 설정")
+        @Operation(summary = "사용자 기준 생성", description = "사용자가 리스트로 받은 사람들에게 메시지를 보내는 기능")
         public String create(
-                        @Parameter(description = "보내는 사람 세션아이디", required = true) @RequestParam(defaultValue = "4d5e6f7g-8h9i-0j1k-l2m3-n4o5p6q7r8s9") String senderSessionId,
-                        @Parameter(description = "받는 사람 세션아이디", required = true) @RequestParam(defaultValue = "4d5e6f7g-8h9i-0j1k-l2m3-n4o5p6q7r8s9") String targetSessionId,
-                        @Parameter(description = "삭제 여부", required = true) @RequestParam(defaultValue = "F") String deleteAt,
-                        @Parameter(description = "확인 여부", required = true) @RequestParam(defaultValue = "F") String checkAt,
+                        // @Parameter(description = "보내는 사람 세션아이디", required = true)
+                        // @RequestParam(defaultValue = "4d5e6f7g-8h9i-0j1k-l2m3-n4o5p6q7r8s9") String
+                        // senderSessionId,
+                        // @Parameter(description = "받는 사람 세션아이디", required = true)
+                        // @RequestParam(defaultValue = "4d5e6f7g-8h9i-0j1k-l2m3-n4o5p6q7r8s9") String
+                        // targetSessionIds,
+                        // @Parameter(description = "삭제 여부", required = true) @RequestParam(defaultValue
+                        // = "F") String deleteAt,
+                        // @Parameter(description = "확인 여부", required = true) @RequestParam(defaultValue
+                        // = "F") String checkAt,
                         @Parameter(description = "메시지 제목, 내용", required = true) @RequestBody MSG_MessagePost_DTO msg_MessagePost_DTO) {
                 UsernamePasswordAuthenticationToken auth = (UsernamePasswordAuthenticationToken) SecurityContextHolder
                                 .getContext().getAuthentication();
                 // 유저 세션아이디 보안 컨텍스트에서 가져오기
                 String userSessionId = auth.getPrincipal().toString();
-                String sendDate = new Date().toString().replace("KST", "GMT");
-                String receiveDate = new Date().toString().replace("KST", "GMT");
+                String sendDate = new Date().toString().replace("KST", "GMT"); // 기본 시스템 설정
+                String receiveDate = new Date().toString().replace("KST", "GMT"); // 기본 시스템 설정
                 String messageTitle = msg_MessagePost_DTO.getMessageTitle();
                 String messageContent = msg_MessagePost_DTO.getMessageContent();
-                if (userSessionId.equals(senderSessionId)) {
+                String deleteAt = "F"; // 기본 시스템 설정
+                String checkAt = "F"; // 기본 시스템 설정
+                List<String> targetSessionIds = msg_MessagePost_DTO.getTargetSessionIds();
+                // if (userSessionId.equals(userSessionId)) {
+                for (String target : targetSessionIds) {
                         Message newMessage = Message.builder()
-                                        .senderSessionId(senderSessionId)
-                                        .receiverSessionId(senderSessionId)
+                                        .senderSessionId(userSessionId)
+                                        .receiverSessionId(target)
                                         .senderDelete(deleteAt)
                                         .receiverDelete(deleteAt)
                                         .sendTime(sendDate)
@@ -274,9 +286,25 @@ public class MSG_Controller {
                                         .receiverCheck(checkAt)
                                         .build();
                         m_Default_Repository.save(newMessage);
-                        return "생성 성공";
                 }
-                return "생성 실패";
+                return "생성 성공";
+                // }
+                // return "생성 실패";
+        }
+
+        @Autowired
+        MSG_GetFriendList_Repository friendList_Repository;
+
+        @GetMapping("/getFriendList")
+        @Operation(summary = "친구 목록 조회", description = "사용자 기준 친구 목록 조회")
+        public Page<MSG_GetFriendList_Projection> getFriendList(
+                        @Parameter(description = "검색 파라미터", required = false) @RequestParam(required = false) String searchParam,
+                        int page, int size) {
+                Pageable pageable = PageRequest.of(page, size);
+                Page<MSG_GetFriendList_Projection> selected = friendList_Repository.findByNicknameContaining(
+                                searchParam,
+                                pageable);
+                return selected;
         }
 
         @Autowired

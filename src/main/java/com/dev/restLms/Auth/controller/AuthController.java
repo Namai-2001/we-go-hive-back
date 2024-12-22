@@ -139,6 +139,7 @@ public class AuthController {
 
     @GetMapping("/security/getcontext/test")
     @Operation(summary = "인증 토큰 검증 엔드포인트", description = "JWT를 해석해서 이름만 반환하는 엔드포인트 입니다. 만료는 확인하지 않습니다.")
+
     public ResponseEntity<?> getContextTest(
             @Parameter(description = "검증할 JWT 헤더", required = true) @RequestHeader(required = true) String token) {
 
