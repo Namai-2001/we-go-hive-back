@@ -3,10 +3,10 @@ package com.dev.restLms.juhwi.MessageService.controller;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.dev.restLms.Auth.service.JwtTokenProvider;
 import com.dev.restLms.entity.Message;
 import com.dev.restLms.juhwi.MessageService.projection.MSG_M_Admin_Projection;
 import com.dev.restLms.juhwi.MessageService.projection.MSG_M_Self_Projection;
-import com.dev.restLms.juhwi.LoginSystem.LoginService.service.JwtTokenProvider;
 import com.dev.restLms.juhwi.MessageService.dto.MSG_MessagePost_DTO;
 import com.dev.restLms.juhwi.MessageService.projection.MSG_Details_Projection;
 import com.dev.restLms.juhwi.MessageService.projection.MSG_Inbox_Projection;

@@ -38,6 +38,8 @@ public class Message {
 
     private String receiverCheck;
 
+    private String senderCheck;
+
     @PrePersist
     public void generateUUID() {
         if (messageId == null) {
