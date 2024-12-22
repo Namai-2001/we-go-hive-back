@@ -1,7 +1,11 @@
 package com.dev.restLms.sechan.subjectListPage.controller;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.dev.restLms.entity.OfferedSubjects;
@@ -94,18 +98,67 @@ public class SLP_Controller {
 
     @GetMapping("/getAllSubjectInfo")
     @Operation(summary = "전체 개설 과목 및 강사 조회", description = "개설된 모든 과목의 상세 정보와 강사 이름을 조회합니다")
-    public List<Map<String, String>> getAllSubjectInfo() {
+    public Map<String, Object> getAllSubjectInfo(
+            @RequestParam(defaultValue = "") String searchParam,
+            @RequestParam(defaultValue = "ALL") String type,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "8") int size) {
 
-        // OfferredSubjects에서 모든 개설 과목 조회
-        List<OfferedSubjects> offeredSubjectsList = slp_os_repository.findAll();
+        Pageable pageable = PageRequest.of(page, size);
 
         // 결과 리스트 초기화
         List<Map<String, String>> result = new ArrayList<>();
 
-        for (OfferedSubjects os : offeredSubjectsList) {
+        // SUBJECTNAME CASE : 서브젝트의 필드 SubjectName에 searchParam의 문자열이 포함되는가 에 대한 조회
+        List<Subject> searchSubject = slp_s_repository.findBySubjectNameContaining(searchParam);
+
+        // 과목에 대한 아이디들
+        List<String> subId = new ArrayList<>();
+        for (Subject eachSubject : searchSubject) {
+            System.out.println(eachSubject.getSubjectId());
+            subId.add(eachSubject.getSubjectId());
+        }
+
+        // 개설 과목에 대한 아이디들
+        
+
+        List<User> searchUsers = slp_u_repository.findByUserNameContaining(searchParam);
+        List<String> userId = new ArrayList<>();
+        for (User user : searchUsers) {
+            System.out.println(user.getSessionId());
+            userId.add(user.getSessionId());
+        }
+
+        Page<OfferedSubjects> offeredSubjectsPage;
+
+        if (type.equals("ALL")) {
+            offeredSubjectsPage = slp_os_repository.findByTeacherSessionIdInOrSubjectIdIn(userId, subId,
+                    pageable);
+                    for (OfferedSubjects offeredSubjects : offeredSubjectsPage) {
+                        System.out.println(offeredSubjects.getSubjectId());
+                    }
+        } else if (type.equals("SUBJECTNAME")) {
+            offeredSubjectsPage = slp_os_repository.findBySubjectIdIn(subId, pageable);
+            for (OfferedSubjects offeredSubjects : offeredSubjectsPage) {
+                System.out.println(offeredSubjects.getSubjectId());
+            }
+        } else if (type.equals("TEACHERNAME")) {
+            offeredSubjectsPage = slp_os_repository.findByTeacherSessionIdIn(userId, pageable);
+            for (OfferedSubjects offeredSubjects : offeredSubjectsPage) {
+                System.out.println(offeredSubjects.getSubjectId());
+            }
+        } else {
+            // 기본 값
+            offeredSubjectsPage = slp_os_repository.findAll(pageable);
+        }
+
+        // OfferredSubjects에서 모든 개설 과목 조회 (페이지네이션 적용)
+        // Page<OfferedSubjects> offeredSubjectsPage =
+        // slp_os_repository.findAll(pageable);
+
+        for (OfferedSubjects os : offeredSubjectsPage) {
             Map<String, String> details = new HashMap<>();
 
-            // OfferedSubjects ID 추가
             details.put("offeredSubjectsId", os.getOfferedSubjectsId());
 
             // 과목 정보 조회
@@ -132,6 +185,13 @@ public class SLP_Controller {
             result.add(details);
         }
 
-        return result;
+        // 페이지 정보와 결과 리스트를 함께 반환
+        Map<String, Object> response = new HashMap<>();
+        response.put("currentPage", offeredSubjectsPage.getNumber());
+        response.put("totalItems", offeredSubjectsPage.getTotalElements());
+        response.put("totalPages", offeredSubjectsPage.getTotalPages());
+        response.put("subjects", result);
+
+        return response;
     }
 }

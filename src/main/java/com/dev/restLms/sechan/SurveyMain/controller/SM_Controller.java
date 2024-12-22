@@ -81,16 +81,19 @@ public class SM_Controller {
     public List<Map<String, Object>> getCourseSurveyStatus(@RequestParam String sessionId) {
         List<Map<String, Object>> courseResponse = new ArrayList<>();
 
+        // 사용자 과정 조회
         List<SM_UOC_Projection> userCourses = sm_uoc_repository.findBySessionId(sessionId);
         List<String> courseIds = new ArrayList<>();
         for (SM_UOC_Projection userCourse : userCourses) {
             courseIds.add(userCourse.getCourseId());
         }
 
+        // 과정 정보 조회
         List<SM_C_Projection> courses = sm_c_repository.findByCourseIdIn(courseIds);
-        String today = LocalDate.now().format(DateTimeFormatter.ISO_DATE);
+        String today = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
 
         for (SM_C_Projection course : courses) {
+            Map<String, Object> courseData = new HashMap<>();
             Optional<SurveyExecution> surveyExecutionOpt = sm_se_repository.findByCourseId(course.getCourseId());
 
             if (surveyExecutionOpt.isPresent()) {
@@ -111,14 +114,15 @@ public class SM_Controller {
                 String courseEndDate = course.getCourseEndDate();
                 String surveyStatus = isSurveyCompleted
                         ? "F"
-                        : ("T".equals(courseApproval) && (courseEndDate == null || courseEndDate.compareTo(today) >= 0))
+                        : ("T".equals(courseApproval) && courseEndDate != null && courseEndDate.compareTo(today) >= 0)
                                 ? "T"
                                 : "F";
 
-                Map<String, Object> courseData = new HashMap<>();
+                String formattedCourseEndDate = courseEndDate != null ? formatDate(courseEndDate) : null;
+
                 courseData.put("courseId", course.getCourseId());
                 courseData.put("courseTitle", course.getCourseTitle());
-                courseData.put("courseEndDate", formatDate(courseEndDate));
+                courseData.put("courseEndDate", formattedCourseEndDate);
                 courseData.put("courseApproval", courseApproval);
                 courseData.put("surveyStatus", surveyStatus);
                 courseData.put("surveyExecutionId", surveyExecution.getSurveyExecutionId());

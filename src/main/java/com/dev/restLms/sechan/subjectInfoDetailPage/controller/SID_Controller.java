@@ -140,7 +140,6 @@ public class SID_Controller {
             return ResponseEntity.badRequest().body("이미 과정에 등록되어 있습니다.");
         }
 
-        // 중복 신청 방지: 동일한 과목(offeredSubjectsId)이 'T'로 이미 등록된 경우
         Optional<UserOwnAssignment> existingAssignmentT = sid_uoa_repository.findByUserSessionIdAndOfferedSubjectsIdAndSubjectAcceptCategory(
                 userSessionId, offeredSubjectsId, "T");
 
@@ -148,7 +147,6 @@ public class SID_Controller {
             return ResponseEntity.badRequest().body("이미 신청한 과목입니다.");
         }
 
-        // 새로운 과목 신청: subjectAcceptCategory는 항상 'T'
         UserOwnAssignment newAssignment = UserOwnAssignment.builder()
                 .userSessionId(userSessionId)
                 .offeredSubjectsId(offeredSubjectsId)
