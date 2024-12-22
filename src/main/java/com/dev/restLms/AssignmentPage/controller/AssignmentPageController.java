@@ -145,6 +145,7 @@ public class AssignmentPageController {
             .getContext().getAuthentication();
 
         final String userSessionId = auth.getPrincipal().toString();
+        
         Pageable pageable = PageRequest.of(page, size);
         List<Map<String, Object>> resultList = new ArrayList<>();
 

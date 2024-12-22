@@ -15,6 +15,8 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
 import java.io.IOException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -28,14 +30,22 @@ import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.UrlResource;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 
 
 
@@ -62,7 +72,7 @@ public class FreeBulletinBoardPostController {
     @Autowired
     FreeBulletinBoardPostFileInfoRepository freeBulletinBoardPostFileInfoRepository;
 
-    private static final String ROOT_DIR = "WeGoHiveFile/";
+    private static final String ROOT_DIR = "src/main/resources/static/";
     private static final String UPLOAD_DIR = "Board/";
     private static final String BOARD_DIR = "BulletinBoard/";
     private static final long MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB (바이트 단위)
@@ -70,13 +80,17 @@ public class FreeBulletinBoardPostController {
     @PostMapping("/post")
     @Operation(summary = "자유게시판 게시글 작성", description = "자유게시판에서 게시글을 작성합니다.")
     public ResponseEntity<?> postBoardPost(
-        @RequestParam String sessionId,
         @RequestParam String boardId,
         @RequestPart("userBoardPost") BoardPost userBoardPost,
         @RequestPart("file") MultipartFile file
         ) {
 
             try {
+
+                UsernamePasswordAuthenticationToken auth = (UsernamePasswordAuthenticationToken) SecurityContextHolder
+                                .getContext().getAuthentication();
+                // 유저 세션아이디 보안 컨텍스트에서 가져오기
+                String sessionId = auth.getPrincipal().toString();
 
                 Optional<UserOwnPermissionGroup> user = freeBulletinBoardPostUserOwnPermissionGroupRepository.findBySessionId(sessionId);
     
@@ -160,7 +174,7 @@ public class FreeBulletinBoardPostController {
         String uniqueFileName = UUID.randomUUID().toString() + fileExtension;
 
         // 저장 경로
-        Path path = Paths.get(ROOT_DIR + UPLOAD_DIR + BOARD_DIR + userBoardPost.getTitle() + '-' + uniqueFileName);
+        Path path = Paths.get(ROOT_DIR + UPLOAD_DIR + BOARD_DIR + uniqueFileName);
 
         // 파일이 존재하지 않으면 생성 
         Files.createDirectories(path.getParent());
@@ -176,13 +190,76 @@ public class FreeBulletinBoardPostController {
         return result;
     }
 
+    // 이미지 반환 
+    @GetMapping("/images/{fileNo:.+}")
+    public ResponseEntity<Resource> getImage(@PathVariable String fileNo) {
+        try {
+            Optional<FileInfo> fileInfoOptional = freeBulletinBoardPostFileInfoRepository.findByFileNo(fileNo);
+            if (!fileInfoOptional.isPresent()) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
+            }
+
+            FileInfo fileInfo = fileInfoOptional.get();
+            Path filePath = Paths.get(fileInfo.getFilePath() + fileInfo.getEncFileNm());
+            Resource resource = new UrlResource(filePath.toUri());
+
+            if (resource.exists() || resource.isReadable()) {
+                return ResponseEntity.ok()
+                        .contentType(MediaType.IMAGE_JPEG) // 이미지 형식에 맞게 설정
+                        .body(resource);
+            } else {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
+            }
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+        }
+    }
+
+    // 파일 다운로드 반환 
+    @GetMapping("/download/{fileNo}")
+    public ResponseEntity<Resource> downloadFile(@PathVariable String fileNo) {
+        try {
+            // 파일 정보 조회
+            Optional<FileInfo> fileInfoOptional = freeBulletinBoardPostFileInfoRepository.findByFileNo(fileNo);
+            
+            if (fileInfoOptional.isPresent()) {
+                FileInfo fileInfo = fileInfoOptional.get();
+                Path filePath = Paths.get(fileInfo.getFilePath() + fileInfo.getEncFileNm());
+                Resource resource = new UrlResource(filePath.toUri());
+
+                if (resource.exists() || resource.isReadable()) {
+
+                    // 파일을 다운로드할 수 있도록 ResponseEntity에 설정
+                    String encodedFileName = URLEncoder.encode(fileInfo.getOrgFileNm(), StandardCharsets.UTF_8.toString());
+                    return ResponseEntity.ok()
+                            .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                            .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename*=UTF-8''" + encodedFileName)
+                            .contentLength(Files.size(filePath)) // 파일 크기 설정
+                            .body(resource);
+                            
+                } else {
+                    return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
+                }
+            } else {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
+            }
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(null);
+        }
+    }
+
     @PostMapping("/comment")
     @Operation(summary = "자유게시판 게시글의 댓글 작성", description = "자유게시판의 게시글에서 댓글을 작성합니다.")
     public ResponseEntity<?> postComment(
-        @RequestParam String sessionId,
         @RequestParam String postId,
         @RequestBody Comment userComment
     ) {
+
+        UsernamePasswordAuthenticationToken auth = (UsernamePasswordAuthenticationToken) SecurityContextHolder
+                                .getContext().getAuthentication();
+                // 유저 세션아이디 보안 컨텍스트에서 가져오기
+                String sessionId = auth.getPrincipal().toString();
 
         Optional<UserOwnPermissionGroup> user = freeBulletinBoardPostUserOwnPermissionGroupRepository.findBySessionId(sessionId);
 
@@ -220,11 +297,15 @@ public class FreeBulletinBoardPostController {
     @PostMapping("/comment/reply")
     @Operation(summary = "자유게시판 게시글 댓글의 대댓글 작성", description = "자유게시판의 게시글 댓글의 대댓글을 작성합니다.")
     public ResponseEntity<?> postCommentReply(
-        @RequestParam String sessionId,
         @RequestParam String postId,
         @RequestParam String commentId,
         @RequestBody Comment userCommentReply
         ) {
+
+            UsernamePasswordAuthenticationToken auth = (UsernamePasswordAuthenticationToken) SecurityContextHolder
+                                .getContext().getAuthentication();
+                // 유저 세션아이디 보안 컨텍스트에서 가져오기
+                String sessionId = auth.getPrincipal().toString();
 
             Optional<UserOwnPermissionGroup> user = freeBulletinBoardPostUserOwnPermissionGroupRepository.findBySessionId(sessionId);
 
@@ -274,12 +355,17 @@ public class FreeBulletinBoardPostController {
     @GetMapping()
     @Operation(summary = "자유게시판 게시글 및 댓글 확인", description = "자유게시판의 게시글과 댓글 목록을 가져옵니다.")
     public ResponseEntity<?> getboardPost(
-        @RequestParam String sessionId,
         @RequestParam String postId,
         @RequestParam(defaultValue = "0") int page,
         @RequestParam(defaultValue = "5") int size
     ) {
         try {
+
+            UsernamePasswordAuthenticationToken auth = (UsernamePasswordAuthenticationToken) SecurityContextHolder
+                                .getContext().getAuthentication();
+                // 유저 세션아이디 보안 컨텍스트에서 가져오기
+                String sessionId = auth.getPrincipal().toString();
+
             Optional<UserOwnPermissionGroup> user = freeBulletinBoardPostUserOwnPermissionGroupRepository.findBySessionId(sessionId);
     
             if (user.isPresent()) {
@@ -305,15 +391,22 @@ public class FreeBulletinBoardPostController {
                     FileInfo fileInfo = fileinfoOptional.get();
                     posts.put("fileNo", fileInfo.getFileNo());
                     posts.put("orgFileNm", fileInfo.getOrgFileNm());
-                    // 파일의 다운로드 URL을 추가
-                    String fileDownloadUrl = "/download/" + fileInfo.getFileNo(); // 다운로드 API URL
-                    posts.put("fileDownloadUrl", fileDownloadUrl);
+                    // 이미지 표시 URL 생성
+                    String orgFileNm = fileInfo.getOrgFileNm();
+                    if (orgFileNm != null && (orgFileNm.endsWith(".jpg") || orgFileNm.endsWith(".jpeg") || orgFileNm.endsWith(".png"))) {
+                        String imageUrl = fileInfo.getFileNo(); // 이미지 URL
+                        posts.put("imageUrl", imageUrl); // 이미지 URL 추가
+                    }else{
+                        // 파일 다운로드 URL 생성
+                        String fileDownloadUrl = fileInfo.getFileNo(); // 다운로드 API URL
+                        posts.put("fileDownloadUrl", fileDownloadUrl); // 다운로드 링크 추가
+                    }
                 }
     
                 resuList.put("post", posts);
     
                 // 해당 게시글의 부모댓글들 확인 
-                Pageable pageable = PageRequest.of(page, size);
+                Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdDate"));
                 Page<Comment> comments = freeBulletinBoardPostCommentRepository.findByPostIdAndPreviousCommentId(postId, null, pageable);
     
                 List<Map<String, Object>> userComments = new ArrayList<>();
@@ -322,7 +415,11 @@ public class FreeBulletinBoardPostController {
                     userComment.put("commentId", comment.getCommentId());
                     userComment.put("commentAuthorNickname", comment.getAuthorNickname());
                     userComment.put("commentCreatedDate", comment.getCreatedDate());
-                    userComment.put("comment", comment.getContent());
+                    if(!comment.getSessionId().equals(sessionId) && comment.getIsSecret().equals("T")){
+                        userComment.put("comment", "비밀 댓글 입니다.");
+                    }else{
+                        userComment.put("comment", comment.getContent());
+                    }
                     userComment.put("commentSessionId", comment.getSessionId());
                     userComment.put("isSecret", comment.getIsSecret());
                     userComments.add(userComment);
@@ -351,11 +448,15 @@ public class FreeBulletinBoardPostController {
     @GetMapping("/reply")
     @Operation(summary = "자유게시판 댓글의 대댓글 확인", description = "자유게시판의 대댓글 목록을 가져옵니다.")
     public ResponseEntity<?> getCommentReply(
-        @RequestParam String sessionId,
         @RequestParam String commentId,
         @RequestParam(defaultValue = "0") int page,
         @RequestParam(defaultValue = "6") int size
         ) {
+
+            UsernamePasswordAuthenticationToken auth = (UsernamePasswordAuthenticationToken) SecurityContextHolder
+                                .getContext().getAuthentication();
+                // 유저 세션아이디 보안 컨텍스트에서 가져오기
+                String sessionId = auth.getPrincipal().toString();
 
             // 사용자 확인 
             Optional<UserOwnPermissionGroup> user = freeBulletinBoardPostUserOwnPermissionGroupRepository.findBySessionId(sessionId);
@@ -363,7 +464,7 @@ public class FreeBulletinBoardPostController {
             if(user.isPresent()){
 
                 // 해당 댓글의 대댓글 목록 확인 
-                Pageable pageable = PageRequest.of(page, size);
+                Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdDate"));
                 Page<Comment> replyComments = freeBulletinBoardPostCommentRepository.findByRootCommentId(commentId, pageable);
     
                 List<Map<String, Object>> resultList = new ArrayList<>();
@@ -377,7 +478,11 @@ public class FreeBulletinBoardPostController {
                         comment.put("replyCommentId", replyComment.getCommentId());
                         comment.put("replyAuthorNickname", replyComment.getAuthorNickname());
                         comment.put("replyCreatedDate", replyComment.getCreatedDate());
-                        comment.put("replyContent", replyComment.getContent());
+                        if(!replyComment.getSessionId().equals(sessionId) && replyComment.getIsSecret().equals("T")){
+                            comment.put("replyContent", "비밀 답글 입니다.");
+                        }else{
+                            comment.put("replyContent", replyComment.getContent());
+                        }
                         comment.put("replySessionId", replyComment.getSessionId());
                         comment.put("replyIsSecret", replyComment.getIsSecret());
     
@@ -404,9 +509,14 @@ public class FreeBulletinBoardPostController {
     @PostMapping("/postDelete")
     @Operation(summary = "자유게시판 게시글 삭제", description = "자유게시판의 게시글을 삭제합니다")
     public ResponseEntity<?> deletePost(
-        @RequestParam String sessionId,
         @RequestParam String postId
         ) {
+
+            UsernamePasswordAuthenticationToken auth = (UsernamePasswordAuthenticationToken) SecurityContextHolder
+                                .getContext().getAuthentication();
+                // 유저 세션아이디 보안 컨텍스트에서 가져오기
+                String sessionId = auth.getPrincipal().toString();
+
             // 삭제하려는 게시글의 사용자 세션아이디 확인 
             Optional<FreeBulletinBoardPosts> findUser = freeBulletinBoardPostRepository.findByPostId(postId);
 
@@ -455,9 +565,13 @@ public class FreeBulletinBoardPostController {
     @PostMapping("/postComment")
     @Operation(summary = "자유게시판 게시글의 댓글 삭제", description = "자유게시판의 게시글의 댓글을 삭제합니다")
     public ResponseEntity<?> deleteComment(
-        @RequestParam String sessionId,
         @RequestParam String commentId
         ) {
+
+            UsernamePasswordAuthenticationToken auth = (UsernamePasswordAuthenticationToken) SecurityContextHolder
+                                .getContext().getAuthentication();
+                // 유저 세션아이디 보안 컨텍스트에서 가져오기
+                String sessionId = auth.getPrincipal().toString();
             
             // 삭제하려는 댓글의 사용자 세션 아이디 확인 
             Optional<Comment> findUser = freeBulletinBoardPostCommentRepository.findByCommentId(commentId);
@@ -483,13 +597,17 @@ public class FreeBulletinBoardPostController {
     @PostMapping("/postUpdate")
     @Operation(summary = "자유게시판 게시글 수정", description = "자유게시판을 수정합니다")
     public ResponseEntity<?> UpdateBullentinBoard(
-        @RequestBody String sessionId,
         @RequestParam String postId,
         @RequestPart("file") MultipartFile file,
         @RequestPart("bullentinUpdatePost") BoardPost bullentinUpdatePost
         ) {
 
             try {
+
+                UsernamePasswordAuthenticationToken auth = (UsernamePasswordAuthenticationToken) SecurityContextHolder
+                                .getContext().getAuthentication();
+                // 유저 세션아이디 보안 컨텍스트에서 가져오기
+                String sessionId = auth.getPrincipal().toString();
                 
                 Optional<FreeBulletinBoardPosts> findPostSessionId = freeBulletinBoardPostRepository.findByPostId(postId);
                 

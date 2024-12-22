@@ -1,6 +1,8 @@
 package com.dev.restLms.announcementPost;
 
 import java.io.IOException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -14,9 +16,12 @@ import java.util.UUID;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestPart;
@@ -63,13 +68,17 @@ public class announcementPostController {
     @PostMapping("/post")
     @Operation(summary = "공지사항 작성", description = "공지사항을 작성합니다.")
     public ResponseEntity<?> postAnnouncement(
-        @RequestParam String sessionId,
         @RequestParam String boardId,
         @RequestPart("officerBoardPost") BoardPost officerBoardPost,
         @RequestPart("file") MultipartFile file
         ) {
 
             try {
+
+                UsernamePasswordAuthenticationToken auth = (UsernamePasswordAuthenticationToken) SecurityContextHolder
+                                .getContext().getAuthentication();
+                // 유저 세션아이디 보안 컨텍스트에서 가져오기
+                String sessionId = auth.getPrincipal().toString();
 
                  // 회원 확인 
                 Optional<UserOwnPermissionGroup> officerSessionIdCheck = announcementPostUserOwnPermissionGroupRepository.findBySessionId(sessionId);
@@ -163,7 +172,7 @@ public class announcementPostController {
         String uniqueFileName = UUID.randomUUID().toString() + fileExtension;
 
         // 저장 경로
-        Path path = Paths.get(ROOT_DIR + UPLOAD_DIR + BOARD_DIR + officerBoardPost.getTitle() + '-' + uniqueFileName);
+        Path path = Paths.get(ROOT_DIR + UPLOAD_DIR + BOARD_DIR + uniqueFileName);
 
         // 파일이 존재하지 않으면 생성 
         Files.createDirectories(path.getParent());
@@ -183,13 +192,17 @@ public class announcementPostController {
     @PostMapping("/postUpdate")
     @Operation(summary = "공지사항 게시글 수정", description = "공지사항을 수정합니다.")
     public ResponseEntity<?> updateAnnouncement(
-        @RequestParam String sessionId,
         @RequestParam String postId,
         @RequestPart("file") MultipartFile file,
         @RequestPart("officerUpdatePost") BoardPost officerUpdatePost
         ) {
 
             try {
+
+                UsernamePasswordAuthenticationToken auth = (UsernamePasswordAuthenticationToken) SecurityContextHolder
+                                .getContext().getAuthentication();
+                // 유저 세션아이디 보안 컨텍스트에서 가져오기
+                String sessionId = auth.getPrincipal().toString();
 
                 Optional<UserOwnPermissionGroup> officerCheck = announcementPostUserOwnPermissionGroupRepository.findBySessionId(sessionId);
 
@@ -292,15 +305,19 @@ public class announcementPostController {
 
             
     }
-    
 
     @GetMapping()
     @Operation(summary = "공지사항 확인", description = "공지사항 게시글을 가져옵니다.")
     public ResponseEntity<?> getAnnouncement(
-        @RequestParam String sessionId,
         @RequestParam String postId
     ) {
         try {
+
+            UsernamePasswordAuthenticationToken auth = (UsernamePasswordAuthenticationToken) SecurityContextHolder
+                                .getContext().getAuthentication();
+                // 유저 세션아이디 보안 컨텍스트에서 가져오기
+                String sessionId = auth.getPrincipal().toString();
+
             Optional<UserOwnPermissionGroup> userCheck = announcementPostUserOwnPermissionGroupRepository.findBySessionId(sessionId);
     
             if (userCheck.isPresent()) {
@@ -332,7 +349,7 @@ public class announcementPostController {
                         post.put("imageUrl", imageUrl); // 이미지 URL 추가
                     }else{
                         // 파일 다운로드 URL 생성
-                        String fileDownloadUrl = "/download/" + fileInfo.getFileNo(); // 다운로드 API URL
+                        String fileDownloadUrl = fileInfo.getFileNo(); // 다운로드 API URL
                         post.put("fileDownloadUrl", fileDownloadUrl); // 다운로드 링크 추가
                     }
                     
@@ -347,15 +364,78 @@ public class announcementPostController {
             return ResponseEntity.status(HttpStatus.CONFLICT).body("오류 발생: " + e.getMessage());
         }
     }
-    
+
+    // 이미지 반환 
+    @GetMapping("/images/{fileNo:.+}")
+    public ResponseEntity<Resource> getImage(@PathVariable String fileNo) {
+        try {
+            Optional<FileInfo> fileInfoOptional = announcementPostFileInfoRepository.findByFileNo(fileNo);
+            if (!fileInfoOptional.isPresent()) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
+            }
+
+            FileInfo fileInfo = fileInfoOptional.get();
+            Path filePath = Paths.get(fileInfo.getFilePath() + fileInfo.getEncFileNm());
+            Resource resource = new UrlResource(filePath.toUri());
+
+            if (resource.exists() || resource.isReadable()) {
+                return ResponseEntity.ok()
+                        .contentType(MediaType.IMAGE_JPEG) // 이미지 형식에 맞게 설정
+                        .body(resource);
+            } else {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
+            }
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+        }
+    }
+
+    // 파일 다운로드 반환 
+    @GetMapping("/download/{fileNo}")
+    public ResponseEntity<Resource> downloadFile(@PathVariable String fileNo) {
+        try {
+            // 파일 정보 조회
+            Optional<FileInfo> fileInfoOptional = announcementPostFileInfoRepository.findByFileNo(fileNo);
+            
+            if (fileInfoOptional.isPresent()) {
+                FileInfo fileInfo = fileInfoOptional.get();
+                Path filePath = Paths.get(fileInfo.getFilePath() + fileInfo.getEncFileNm());
+                Resource resource = new UrlResource(filePath.toUri());
+
+                if (resource.exists() || resource.isReadable()) {
+
+                    // 파일을 다운로드할 수 있도록 ResponseEntity에 설정
+                    String encodedFileName = URLEncoder.encode(fileInfo.getOrgFileNm(), StandardCharsets.UTF_8.toString());
+                    return ResponseEntity.ok()
+                            .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                            .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename*=UTF-8''" + encodedFileName)
+                            .contentLength(Files.size(filePath)) // 파일 크기 설정
+                            .body(resource);
+                            
+                } else {
+                    return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
+                }
+            } else {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
+            }
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(null);
+        }
+    }
 
     @PostMapping("postDelete")
     @Operation(summary = "공지사항 삭제", description = "공지사항을 삭제합니다")
     public ResponseEntity<?> deleteAnnouncement(
-        @RequestParam String sessionId,
         @RequestParam String postId 
     ) {
         try {
+
+            UsernamePasswordAuthenticationToken auth = (UsernamePasswordAuthenticationToken) SecurityContextHolder
+                                .getContext().getAuthentication();
+                // 유저 세션아이디 보안 컨텍스트에서 가져오기
+                String sessionId = auth.getPrincipal().toString();
+            
             // 사용자 권한 확인
             Optional<UserOwnPermissionGroup> officerOptional = announcementPostUserOwnPermissionGroupRepository.findBySessionId(sessionId);
             if (!officerOptional.isPresent()) {
@@ -407,28 +487,6 @@ public class announcementPostController {
             return ResponseEntity.status(HttpStatus.CONFLICT).body("오류 발생: " + e.getMessage());
         }
     }
-    @GetMapping("/images/{fileNo:.+}")
-    public ResponseEntity<Resource> getImage(@PathVariable String fileNo) {
-    try {
-        Optional<FileInfo> fileInfoOptional = announcementPostFileInfoRepository.findByFileNo(fileNo);
-        if (!fileInfoOptional.isPresent()) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
-        }
 
-        FileInfo fileInfo = fileInfoOptional.get();
-        Path filePath = Paths.get(fileInfo.getFilePath() + fileInfo.getEncFileNm());
-        Resource resource = new UrlResource(filePath.toUri());
-
-        if (resource.exists() || resource.isReadable()) {
-            return ResponseEntity.ok()
-                    .contentType(MediaType.IMAGE_JPEG) // 이미지 형식에 맞게 설정
-                    .body(resource);
-        } else {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
-        }
-    } catch (Exception e) {
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
-    }
-}
     
 }

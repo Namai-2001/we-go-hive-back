@@ -8,6 +8,8 @@ import com.dev.restLms.entity.FileInfo;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -15,17 +17,22 @@ import java.util.Map;
 import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.UrlResource;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
 
 
 @RestController
-@RequestMapping("announcement")
+@RequestMapping("/announcement")
 @Tag(name = "announcementController", description = "공지사항 게시판")
 public class announcementController {
 
@@ -51,7 +58,7 @@ public class announcementController {
             if(findBoardId.isPresent()){
 
                 // 공지사항 게시판 확인
-                Pageable pageable = PageRequest.of(page, size);
+                Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdDate"));
                 Page<announcementBoardPost> findBoardPosts = announcementBoardPostRepository.findByBoardId(findBoardId.get().getBoardId(), pageable);
 
                 List<Map<String, Object>> resultList = new ArrayList<>();
@@ -95,14 +102,16 @@ public class announcementController {
             return ResponseEntity.status(HttpStatus.CONFLICT).body("해당 공지사항 게시판이 존재하지 않습니다.");
         }
     
-        List<announcementBoardPost> findNoticePosts = announcementBoardPostRepository.findByBoardIdAndIsNotice(findBoardId.get().getBoardId(), "T");
+        // 공지사항 게시글을 페이징 처리하여 가져오기
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdDate"));
+        Page<announcementBoardPost> noticePostsPage = announcementBoardPostRepository.findByBoardIdAndIsNotice(findBoardId.get().getBoardId(), "T", pageable);
     
         List<Map<String, Object>> noticeImgs = new ArrayList<>();
     
-        for (announcementBoardPost findNoticePost : findNoticePosts) {
-            Optional<FileInfo> findimgNotice = announcementFileInfoRepository.findByFileNo(findNoticePost.getFileNo());
-            if (findimgNotice.isPresent()) {
-                FileInfo fileInfo = findimgNotice.get();
+        for (announcementBoardPost findNoticePost : noticePostsPage.getContent()) {
+            Optional<FileInfo> findImgNotice = announcementFileInfoRepository.findByFileNo(findNoticePost.getFileNo());
+            if (findImgNotice.isPresent()) {
+                FileInfo fileInfo = findImgNotice.get();
                 String orgFileNm = fileInfo.getOrgFileNm();
     
                 if (orgFileNm != null && (orgFileNm.endsWith(".jpg") || orgFileNm.endsWith(".jpeg") || orgFileNm.endsWith(".png"))) {
@@ -115,23 +124,45 @@ public class announcementController {
             }
         }
     
-        // 페이징 처리
-        int totalItems = noticeImgs.size(); // 전체 아이템 수
-        int totalPages = (int) Math.ceil((double) totalItems / size); // 전체 페이지 수
-    
-        // page와 size에 따른 서브리스트 생성
-        int fromIndex = Math.min(page * size, totalItems); // 시작 인덱스
-        int toIndex = Math.min(fromIndex + size, totalItems); // 끝 인덱스
-        List<Map<String, Object>> pagedNoticeImgs = noticeImgs.subList(fromIndex, toIndex);
-    
         // 결과에 페이징 정보 추가
         Map<String, Object> response = new HashMap<>();
-        response.put("content", pagedNoticeImgs);
-        response.put("totalItems", totalItems);
-        response.put("totalPages", totalPages);
+        response.put("content", noticeImgs);
+        response.put("totalItems", noticePostsPage.getTotalElements());
+        response.put("totalPages", noticePostsPage.getTotalPages());
         response.put("currentPage", page);
         response.put("pageSize", size);
     
         return ResponseEntity.ok().body(response);
     }
+    
+
+    @GetMapping("/images/{fileNo:.+}")
+    public ResponseEntity<Resource> getImage(@PathVariable String fileNo) {
+        try {
+            Optional<FileInfo> fileInfoOptional = announcementFileInfoRepository.findByFileNo(fileNo);
+            if (!fileInfoOptional.isPresent()) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
+            }
+
+            FileInfo fileInfo = fileInfoOptional.get();
+            Path filePath = Paths.get(fileInfo.getFilePath() + fileInfo.getEncFileNm());
+            Resource resource = new UrlResource(filePath.toUri());
+
+            if (resource.exists() || resource.isReadable()) {
+                return ResponseEntity.ok()
+                        .contentType(MediaType.IMAGE_JPEG) // 이미지 형식에 맞게 설정
+                        .body(resource);
+            } else {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
+            }
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+        }
+    }
+
+    
+    
+    
+    
+    
 }
