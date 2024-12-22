@@ -33,10 +33,11 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource())) // CORS 설정 추가
                 .authorizeHttpRequests(
                         auth -> auth
-                                .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui/index.html",
-                                        "/api/login", "/api/security/getcontext", "/Home/RandSubjectVid", "/announcement/**", "/freeBulletinBoard")
-                                .permitAll() // Swagger 관련 경로 허용
-                                .anyRequest().authenticated() //
+                        .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui/index.html",
+                                            "/api/login", "/api/security/getcontext", "/Home/RandSubjectVid", 
+                                            "/freeBulletinBoard", "/announcement", "/announcement/mainBanner", "/announcementPost/images/**")
+                        .permitAll() // Swagger 관련 경로 허용
+                        .anyRequest().authenticated()
                 )
                 .httpBasic(basic -> {
                 });

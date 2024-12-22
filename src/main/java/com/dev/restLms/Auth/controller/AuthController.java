@@ -91,6 +91,7 @@ public class AuthController {
             Map<String, Object> userInfo = new HashMap<>();
             userInfo.put("nickName", authorizedUser.getNickname());
             userInfo.put("permissionName", permissionName.get().getPermissionName());
+            userInfo.put("endPointUrl", permissionName.get().getEndpointUrl());
             userInfo.put("token", jwt);
 
             // 로그인이 완료된 사용자를 반환

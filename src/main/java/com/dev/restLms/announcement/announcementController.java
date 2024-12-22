@@ -25,7 +25,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 
 
 @RestController
-@RequestMapping("/announcement")
+@RequestMapping("announcement")
 @Tag(name = "announcementController", description = "공지사항 게시판")
 public class announcementController {
 

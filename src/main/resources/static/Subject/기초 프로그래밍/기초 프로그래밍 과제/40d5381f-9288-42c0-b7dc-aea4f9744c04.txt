@@ -1,0 +1,38 @@
+1. 과목에 대한 영상 하나가 클릭 되었을 때에 해당 비디오 플레이어 뷰가 나와야 함
+2. 
+
+초반에 나한테 넘어오는 데이터
+1. 유저의 세션 아이디 sessionId
+2. 영상의 제목 
+3. 강사 이름 userName
+4. 개설과목 코드 offeredSubjectsId
+5. 회차 번호 = 9 episodeId
+6. 비디오 아이디 = v9i0j1k2-l3m4-n5o6-p7q8-r9s0t1u2v3w4
+
+UserOwnSubjectVIdeo 
+sessionId 
+episodeId 
+offeredSubjectsId 
+progress final
+
+UserOwnSubjectVIdeo - 
+SESSION_ID, EPISODE_ID, OFFERED_SUBJECTS_ID, PROGRESS, FINAL
+=> 최소로 들어오는 값들 프론트에서
+
+BookMark -
+BOOKMARK_TIME, SESSION_ID, EPISODE_ID, OFFERED_SUBJECTS_ID, BOOKMARK_CONTENT
+
+SubjectOwnVideo -
+EPISODE_ID, OFFERED_SUBJECTS_ID, VIDEO_SORT_INDEX, VIDEO_ID
+
+Video -
+VIDEO_ID, MAX, VIDEO_TITLE, VIDEO_LINK
+
+OfferedSubjects - 
+OFFERED_SUBJECTS_ID, COURSE_ID, SUBJECT_ID, OFFICER_SESSION_ID, TEACHER_SESSION_ID
+
+User -
+SESSION_ID, USER_NAME
+
+
+

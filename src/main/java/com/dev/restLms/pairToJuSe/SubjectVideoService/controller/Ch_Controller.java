@@ -9,6 +9,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -81,7 +83,6 @@ public class Ch_Controller {
     @Operation(summary = "영상 목록 별 진행도 계산", description = "영상 목록 별 진행도를 계산해준다")
     public List<String> getListInfoCalculateProgress(
             @Parameter(description = "개설 과목 코드", required = true) String sovOfferedSubjectsId,
-            @Parameter(description = "사용자 세션 아이디", required = true) String sessionId,
             int page,
             int size) {
         Pageable pageable = PageRequest.of(page, size);
@@ -110,11 +111,14 @@ public class Ch_Controller {
 
         // calsList.add(current);
         // }
+        UsernamePasswordAuthenticationToken auth = (UsernamePasswordAuthenticationToken) SecurityContextHolder
+        .getContext().getAuthentication();
 
+        final String userSessionId = auth.getPrincipal().toString();
         for (Ch_SOV_Projection ch_SOV_Projection : resultList) {
             String episodeId = ch_SOV_Projection.getEpisodeId();
             Ch_UOSV_Projection ch_UOSV_Projection = ch_UOSV_Repository
-                    .findByUosvSessionIdAndUosvOfferedSubjectsIdAndUosvEpisodeId(sessionId, sovOfferedSubjectsId,
+                    .findByUosvSessionIdAndUosvOfferedSubjectsIdAndUosvEpisodeId(userSessionId, sovOfferedSubjectsId,
                             episodeId);
 
             String result = ch_UOSV_Projection.getProgress();
@@ -127,7 +131,6 @@ public class Ch_Controller {
     @Operation(summary = "통합 영상 정보 조회", description = "개설 과목 코드와 사용자 세션 아이디를 통해 영상 정보와 진행도를 통합하여 조회합니다.")
     public List<Map<String, String>> getSubjectVideoInfo(
             @Parameter(description = "개설 과목 코드", required = true) @RequestParam String sovOfferedSubjectsId,
-            @Parameter(description = "사용자 세션 아이디", required = true) @RequestParam String sessionId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
 
@@ -135,11 +138,15 @@ public class Ch_Controller {
         Page<Ch_SOV_Projection> sovResults = ch_SOV_Repository
                 .findBySovOfferedSubjectsIdContaining(sovOfferedSubjectsId, pageable);
 
+        UsernamePasswordAuthenticationToken auth = (UsernamePasswordAuthenticationToken) SecurityContextHolder
+        .getContext().getAuthentication();
+
+        final String userSessionId = auth.getPrincipal().toString();
         List<Map<String, String>> pageInfoList = new ArrayList<>();
         for (Ch_SOV_Projection sovProjection : sovResults) {
             Ch_V_Projection vProjection = ch_V_Repository.findByVideoId(sovProjection.getSovVideoId());
             Ch_UOSV_Projection uosvProjection = ch_UOSV_Repository
-                    .findByUosvSessionIdAndUosvOfferedSubjectsIdAndUosvEpisodeId(sessionId, sovOfferedSubjectsId,
+                    .findByUosvSessionIdAndUosvOfferedSubjectsIdAndUosvEpisodeId(userSessionId, sovOfferedSubjectsId,
                             sovProjection.getEpisodeId());
 
             // double max = Double.parseDouble(vProjection.getMax());

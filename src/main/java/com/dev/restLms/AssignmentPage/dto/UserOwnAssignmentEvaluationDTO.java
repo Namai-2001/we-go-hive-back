@@ -11,7 +11,6 @@ import lombok.Setter;
 @AllArgsConstructor
 public class UserOwnAssignmentEvaluationDTO {
   // 과제를 특정 짓기 위해
-  private String uoaeSessionId;
   private String assignmentId;
   // 파일 시스템에 저장되는 경로를 설정하기 위해
   private String subjectName;

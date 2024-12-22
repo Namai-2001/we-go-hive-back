@@ -18,6 +18,8 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
@@ -35,7 +37,6 @@ import com.dev.restLms.AssignmentPage.repository.AssignmentPageUserOwnAssignment
 import com.dev.restLms.entity.FileInfo;
 import com.dev.restLms.entity.UserOwnAssignmentEvaluation;
 
-import io.swagger.v3.oas.annotations.parameters.RequestBody;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
 import org.springframework.web.bind.annotation.GetMapping;
@@ -69,15 +70,21 @@ public class AssignmentPageController {
     
     @GetMapping("/getSpecificUserAssignmentTotal")
     public ResponseEntity<?> getSpecificUserAssignmentTotal(
-        @RequestParam(value = "sessionId", required = true) String sessionId,
         @RequestParam(value = "page", defaultValue = "0") int page,
         @RequestParam(value = "size", defaultValue = "5") int size) {
 
+
+        UsernamePasswordAuthenticationToken auth = (UsernamePasswordAuthenticationToken) SecurityContextHolder
+                .getContext().getAuthentication();
+
+        final String userSessionId = auth.getPrincipal().toString();
         Pageable pageable = PageRequest.of(page, size);
         List<Map<String, Object>> resultList = new ArrayList<>();
 
+        
+
         Page<AssignmentPageUserOwnAssignmentEvaluationProjection> pagedUserAssignments =
-            userOwnAssignmentEvaluationRepo.findByUoaeSessionId(sessionId, pageable);
+            userOwnAssignmentEvaluationRepo.findByUoaeSessionId(userSessionId, pageable);
 
         if (pagedUserAssignments.hasContent()) {
             for (AssignmentPageUserOwnAssignmentEvaluationProjection userOwnAssignmentEvaluation : pagedUserAssignments.getContent()) {
@@ -131,16 +138,19 @@ public class AssignmentPageController {
     }
     @GetMapping("/getSpecificUserAssignmentComplete")
     public ResponseEntity<?> getSpecificUserAssignmentComplete(
-        @RequestParam(value = "sessionId", required = true) String sessionId,
         @RequestParam(value = "page", defaultValue = "0") int page,
         @RequestParam(value = "size", defaultValue = "5") int size) {
 
+        UsernamePasswordAuthenticationToken auth = (UsernamePasswordAuthenticationToken) SecurityContextHolder
+            .getContext().getAuthentication();
+
+        final String userSessionId = auth.getPrincipal().toString();
         Pageable pageable = PageRequest.of(page, size);
         List<Map<String, Object>> resultList = new ArrayList<>();
 
         // "isSubmit"이 "t"인 데이터만 가져오기
         Page<AssignmentPageUserOwnAssignmentEvaluationProjection> pagedUserAssignments =
-            userOwnAssignmentEvaluationRepo.findByUoaeSessionIdAndIsSubmit(sessionId, "t", pageable);
+            userOwnAssignmentEvaluationRepo.findByUoaeSessionIdAndIsSubmit(userSessionId, "t", pageable);
 
         if (pagedUserAssignments.hasContent()) {
             for (AssignmentPageUserOwnAssignmentEvaluationProjection userOwnAssignmentEvaluation : pagedUserAssignments.getContent()) {
@@ -194,16 +204,19 @@ public class AssignmentPageController {
 
     @GetMapping("/getSpecificUserAssignmentIncomplete")
     public ResponseEntity<?> getSpecificUserAssignmentIncomplete(
-        @RequestParam(value = "sessionId", required = true) String sessionId,
         @RequestParam(value = "page", defaultValue = "0") int page,
         @RequestParam(value = "size", defaultValue = "5") int size) {
 
+        UsernamePasswordAuthenticationToken auth = (UsernamePasswordAuthenticationToken) SecurityContextHolder
+            .getContext().getAuthentication();
+
+        final String userSessionId = auth.getPrincipal().toString();
         Pageable pageable = PageRequest.of(page, size);
         List<Map<String, Object>> resultList = new ArrayList<>();
 
         // "isSubmit"이 "t"인 데이터만 가져오기
         Page<AssignmentPageUserOwnAssignmentEvaluationProjection> pagedUserAssignments =
-            userOwnAssignmentEvaluationRepo.findByUoaeSessionIdAndIsSubmit(sessionId, "f", pageable);
+            userOwnAssignmentEvaluationRepo.findByUoaeSessionIdAndIsSubmit(userSessionId, "f", pageable);
 
         if (pagedUserAssignments.hasContent()) {
             for (AssignmentPageUserOwnAssignmentEvaluationProjection userOwnAssignmentEvaluation : pagedUserAssignments.getContent()) {
@@ -269,10 +282,14 @@ public class AssignmentPageController {
             if (file.getSize() > MAX_FILE_SIZE) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).body("파일 크기가 10MB를 초과합니다.");
             }
+            UsernamePasswordAuthenticationToken auth = (UsernamePasswordAuthenticationToken) SecurityContextHolder
+            .getContext().getAuthentication();
+
+            final String userSessionId = auth.getPrincipal().toString();
     
             // 과제 세션 ID와 Assignment ID를 확인
             Optional<UserOwnAssignmentEvaluation> opUserOwnAssignmentEvaluation =
-                userOwnAssignmentEvaluationRepo.UoaeSessionIdAndAssignmentId(dto.getUoaeSessionId(), dto.getAssignmentId());
+                userOwnAssignmentEvaluationRepo.UoaeSessionIdAndAssignmentId(userSessionId, dto.getAssignmentId());
                 // System.out.println(dto.getUoaeSessionId());
                 // System.out.println(dto.getAssignmentId());
     
@@ -306,7 +323,7 @@ public class AssignmentPageController {
                 .orgFileNm(file.getOriginalFilename())
                 .encFileNm(uniqueFileName)
                 .uploadDt(LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss")))
-                .uploaderSessionId(dto.getUoaeSessionId())
+                .uploaderSessionId(userSessionId)
                 .build();
             // 파일 정보 저장
             filePepo.save(fileInfo);
