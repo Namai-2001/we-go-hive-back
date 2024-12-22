@@ -532,8 +532,10 @@ public class FreeBulletinBoardPostController {
 
                 // 게시글 삭제시 게시글에 포함된 댓글들도 전부 삭제하기 위함 
                 List<Comment> deleteComments = freeBulletinBoardPostCommentRepository.findByPostId(postId);
-                for(Comment deleteComment : deleteComments){
-                    freeBulletinBoardPostCommentRepository.deleteById(deleteComment.getCommentId());
+                if(!deleteComments.isEmpty()){
+                    for(Comment deleteComment : deleteComments){
+                        freeBulletinBoardPostCommentRepository.deleteById(deleteComment.getCommentId());
+                    }
                 }
 
                  // 파일 삭제

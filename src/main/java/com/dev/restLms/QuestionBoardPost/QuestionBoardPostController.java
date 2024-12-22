@@ -289,7 +289,9 @@ public class QuestionBoardPostController {
 
                 Optional<QuestionBoardPostComment> deleteComment = questionBoardPostCommentRepository.findByPostId(postId);
 
-                questionBoardPostCommentRepository.deleteById(deleteComment.get().getCommentId());
+                if(deleteComment.isPresent()){
+                    questionBoardPostCommentRepository.deleteById(deleteComment.get().getCommentId());
+                }
 
                 questionBoardPostBoardPostRepository.deleteById(postId);
                 return ResponseEntity.ok().body("삭제 완료");

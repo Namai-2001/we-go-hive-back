@@ -47,7 +47,8 @@ public class FreeBulletinBoardController {
         if(findBoardId.isPresent()){
             
             // 자유게시판의 게시글 확인 
-            Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdDate"));
+            Sort sort = Sort.by(Sort.Direction.DESC, "isNotice").and(Sort.by(Sort.Direction.DESC, "createdDate"));
+            Pageable pageable = PageRequest.of(page, size, sort);
             Page<FreeBulletinBoardPost> findBoardPosts = freeBulletinBoardPostRepository.findByBoardId(findBoardId.get().getBoardId(), pageable);
     
             List<Map<String, Object>> resultList = new ArrayList<>();

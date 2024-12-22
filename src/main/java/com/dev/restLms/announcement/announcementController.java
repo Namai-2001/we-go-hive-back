@@ -58,7 +58,8 @@ public class announcementController {
             if(findBoardId.isPresent()){
 
                 // 공지사항 게시판 확인
-                Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdDate"));
+                Sort sort = Sort.by(Sort.Direction.DESC, "isNotice").and(Sort.by(Sort.Direction.DESC, "createdDate"));
+                Pageable pageable = PageRequest.of(page, size, sort);
                 Page<announcementBoardPost> findBoardPosts = announcementBoardPostRepository.findByBoardId(findBoardId.get().getBoardId(), pageable);
 
                 List<Map<String, Object>> resultList = new ArrayList<>();

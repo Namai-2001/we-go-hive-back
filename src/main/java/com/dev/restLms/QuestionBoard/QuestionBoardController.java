@@ -130,7 +130,8 @@ public class QuestionBoardController {
         List<Map<String, Object>> resultList = new ArrayList<>();
     
         // 페이징 처리된 게시글 가져오기
-        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdDate"));
+        Sort sort = Sort.by(Sort.Direction.DESC, "isNotice").and(Sort.by(Sort.Direction.DESC, "createdDate"));
+        Pageable pageable = PageRequest.of(page, size, sort);
         Page<QuestionBoardPost> questionBoardPosts =
             questionBoardPostRepository.findByBoardId(questionBoard.get().getBoardId(), pageable);
     
