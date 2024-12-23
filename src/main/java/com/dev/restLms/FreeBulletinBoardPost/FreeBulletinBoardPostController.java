@@ -367,6 +367,10 @@ public class FreeBulletinBoardPostController {
                 String sessionId = auth.getPrincipal().toString();
 
             Optional<UserOwnPermissionGroup> user = freeBulletinBoardPostUserOwnPermissionGroupRepository.findBySessionId(sessionId);
+
+            Optional<FreeBulletinBoardPostPermissionGroup> permissionName = freeBulletinBoardPostPermissionGroupRepository.findByPermissionGroupUuid(user.get().getPermissionGroupUuid2());
+
+            String permission = permissionName.get().getPermissionName();
     
             if (user.isPresent()) {
                 // 해당 게시글 내용 확인 
@@ -415,7 +419,7 @@ public class FreeBulletinBoardPostController {
                     userComment.put("commentId", comment.getCommentId());
                     userComment.put("commentAuthorNickname", comment.getAuthorNickname());
                     userComment.put("commentCreatedDate", comment.getCreatedDate());
-                    if(!comment.getSessionId().equals(sessionId) && comment.getIsSecret().equals("T")){
+                    if((!comment.getSessionId().equals(sessionId) && comment.getIsSecret().equals("T")) || !permission.equals("OFFICER") || !permission.equals("SITE_OFFICER")){
                         userComment.put("comment", "비밀 댓글 입니다.");
                     }else{
                         userComment.put("comment", comment.getContent());
@@ -461,6 +465,10 @@ public class FreeBulletinBoardPostController {
             // 사용자 확인 
             Optional<UserOwnPermissionGroup> user = freeBulletinBoardPostUserOwnPermissionGroupRepository.findBySessionId(sessionId);
 
+            Optional<FreeBulletinBoardPostPermissionGroup> permissionName = freeBulletinBoardPostPermissionGroupRepository.findByPermissionGroupUuid(user.get().getPermissionGroupUuid2());
+
+            String permission = permissionName.get().getPermissionName();
+
             if(user.isPresent()){
 
                 // 해당 댓글의 대댓글 목록 확인 
@@ -478,7 +486,7 @@ public class FreeBulletinBoardPostController {
                         comment.put("replyCommentId", replyComment.getCommentId());
                         comment.put("replyAuthorNickname", replyComment.getAuthorNickname());
                         comment.put("replyCreatedDate", replyComment.getCreatedDate());
-                        if(!replyComment.getSessionId().equals(sessionId) && replyComment.getIsSecret().equals("T")){
+                        if((!replyComment.getSessionId().equals(sessionId) && replyComment.getIsSecret().equals("T")) || !permission.equals("OFFICER") || !permission.equals("SITE_OFFICER")){
                             comment.put("replyContent", "비밀 답글 입니다.");
                         }else{
                             comment.put("replyContent", replyComment.getContent());

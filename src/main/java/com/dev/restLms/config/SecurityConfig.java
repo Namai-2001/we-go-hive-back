@@ -35,7 +35,7 @@ public class SecurityConfig {
                         auth -> auth
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui/index.html",
                                             "/api/login", "/api/security/getcontext", "/Home/RandSubjectVid", 
-                                            "/freeBulletinBoard", "/announcement", "/announcement/mainBanner", "/announcementPost/images/**")
+                                            "/freeBulletinBoard", "/announcement", "/announcement/mainBanner","/announcementPost/images/{fileNo:.+}")
                         .permitAll() // Swagger 관련 경로 허용
                         .anyRequest().authenticated()
                 )

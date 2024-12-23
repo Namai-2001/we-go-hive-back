@@ -14,7 +14,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -70,7 +69,7 @@ public class ProcessListController {
             @RequestParam(defaultValue = "10") int size) {
         
         // 페이징 요청
-        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdDate"));
+        Pageable pageable = PageRequest.of(page, size);
         Page<Course> coursePage = processListCourseRepository.findAll(pageable);
         
         // 결과를 저장할 리스트
@@ -169,12 +168,13 @@ public class ProcessListController {
                         }
                     }
 
-                    // 듣고 있는 과정이 없을 때 실행행
+                    // 듣고 있는 과정이 없을 때 실행
                     if(userCourses){
                         UserOwnCourse postUserOwnCourse = UserOwnCourse.builder()
                         .sessionId(sessionId)
                         .courseId(courseId)
                         .officerSessionId(officerSessionId)
+                        .courseApproval("F")
                         .build();
                         processListUserOwnCourseRepository.save(postUserOwnCourse);
 
@@ -212,6 +212,7 @@ public class ProcessListController {
                                     UserOwnAssignment postUserOwnAssignment = UserOwnAssignment.builder()
                                     .userSessionId(sessionId)
                                     .offeredSubjectsId(offeredSubject.get().getOfferedSubjectsId())
+                                    .subjectAcceptCategory("F")
                                     .build();
                                     processListUserOwnAssignmentRepository.save(postUserOwnAssignment);
 
@@ -222,6 +223,8 @@ public class ProcessListController {
                                         .uosvSessionId(sessionId)
                                         .uosvEpisodeId(subjectOwnVideo.getEpisodeId())
                                         .uosvOfferedSubjectsId(subjectOwnVideo.getSovOfferedSubjectsId())
+                                        .progress("0")
+                                        .uosvFinal("0")
                                         .build();
                                         processListUserOwnSubjectVideoRepository.save(postUserSubjectOwnVideo);
                                     }
