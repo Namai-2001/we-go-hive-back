@@ -2,6 +2,8 @@ package com.dev.restLms.sechan.SurveyMain.controller;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.GetMapping;
 
 import org.springframework.web.bind.annotation.PostMapping;
@@ -33,6 +35,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 
@@ -68,17 +71,22 @@ public class SM_Controller {
     private SM_SOR_Repository sm_sor_repository;
 
     // 날짜 형식 변환 함수
-    public static String formatDate(String dateString) {
-        DateTimeFormatter inputFormatter = DateTimeFormatter.ofPattern("yyyyMMdd");
+    public static String convertTo8DigitDate(String dateString) {
+        DateTimeFormatter inputFormatter = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
         DateTimeFormatter outputFormatter = DateTimeFormatter.ofPattern("yyyy년 M월 d일");
 
-        LocalDate date = LocalDate.parse(dateString, inputFormatter);
-        return date.format(outputFormatter);
+        LocalDateTime dateTime = LocalDateTime.parse(dateString, inputFormatter);
+
+        return dateTime.toLocalDate().format(outputFormatter);
     }
 
-    @GetMapping("survey/courses/{sessionId}")
+    @GetMapping("survey/courses")
     @Operation(summary = "과정 만족도 조사 상태 조회", description = "특정 sessionId를 기준으로 과정에 대한 만족도 조사 상태를 반환")
-    public List<Map<String, Object>> getCourseSurveyStatus(@RequestParam String sessionId) {
+    public List<Map<String, Object>> getCourseSurveyStatus() {
+        UsernamePasswordAuthenticationToken auth = (UsernamePasswordAuthenticationToken) SecurityContextHolder
+                .getContext().getAuthentication();
+        // 유저 세션아이디 보안 컨텍스트에서 가져오기
+        String sessionId = auth.getPrincipal().toString();
         List<Map<String, Object>> courseResponse = new ArrayList<>();
 
         // 사용자 과정 조회
@@ -118,7 +126,7 @@ public class SM_Controller {
                                 ? "T"
                                 : "F";
 
-                String formattedCourseEndDate = courseEndDate != null ? formatDate(courseEndDate) : null;
+                String formattedCourseEndDate = courseEndDate != null ? convertTo8DigitDate(courseEndDate) : null;
 
                 courseData.put("courseId", course.getCourseId());
                 courseData.put("courseTitle", course.getCourseTitle());
@@ -134,9 +142,13 @@ public class SM_Controller {
     }
 
     // ------------ 과목 조회 ------------
-    @GetMapping("survey/subjects/{sessionId}")
+    @GetMapping("survey/subjects")
     @Operation(summary = "과목 만족도 조사 상태 조회", description = "특정 sessionId를 기준으로 과목에 대한 만족도 조사 상태를 반환")
-    public List<Map<String, Object>> getSubjectSurveyStatus(@RequestParam String sessionId) {
+    public List<Map<String, Object>> getSubjectSurveyStatus() {
+        UsernamePasswordAuthenticationToken auth = (UsernamePasswordAuthenticationToken) SecurityContextHolder
+                .getContext().getAuthentication();
+        // 유저 세션아이디 보안 컨텍스트에서 가져오기
+        String sessionId = auth.getPrincipal().toString();
         List<Map<String, Object>> subjectResponse = new ArrayList<>();
         List<SM_UOSV_Projection> userVideos = sm_uosv_repository.findByUosvSessionId(sessionId);
         Map<String, List<SM_UOSV_Projection>> groupedVideos = new HashMap<>();
@@ -188,9 +200,13 @@ public class SM_Controller {
         return subjectResponse;
     }
 
-    @GetMapping("/survey/status/{sessionId}")
+    @GetMapping("/survey/status")
     @Operation(summary = "과정 및 과목 만족도 조사 상태 조회", description = "특정 sessionId를 기준으로 과정과 과목의 만족도 조사 상태를 반환")
-    public Map<String, List<Map<String, Object>>> getSurveyStatus(@RequestParam String sessionId) {
+    public Map<String, List<Map<String, Object>>> getSurveyStatus() {
+        UsernamePasswordAuthenticationToken auth = (UsernamePasswordAuthenticationToken) SecurityContextHolder
+                .getContext().getAuthentication();
+        // 유저 세션아이디 보안 컨텍스트에서 가져오기
+        String sessionId = auth.getPrincipal().toString();
         Map<String, List<Map<String, Object>>> response = new HashMap<>();
 
         // ------------ 과정 데이터 조회 ------------
@@ -231,7 +247,7 @@ public class SM_Controller {
                                 ? "T"
                                 : "F";
 
-                String formattedCourseEndDate = courseEndDate != null ? formatDate(courseEndDate) : null;
+                String formattedCourseEndDate = courseEndDate != null ? convertTo8DigitDate(courseEndDate) : null;
 
                 courseData.put("courseId", course.getCourseId());
                 courseData.put("courseTitle", course.getCourseTitle());
@@ -306,7 +322,6 @@ public class SM_Controller {
     @GetMapping("/survey/questions")
     @Operation(summary = "만족도 조사 질문 조회", description = "과정 또는 과목에 대한 만족도 조사 질문을 반환")
     public List<SM_SQ_Projection> getSurveyQuestions(
-            @RequestParam String sessionId,
             @RequestParam String surveyExecutionId,
             @RequestParam(required = false) String courseId,
             @RequestParam(required = false) String offeredSubjectsId) {
@@ -324,6 +339,10 @@ public class SM_Controller {
     @Operation(summary = "만족도 조사 답변 제출", description = "5지선다 및 서술형 답변을 저장합니다.")
     @PostMapping("survey/submit")
     public ResponseEntity<String> submitSurveyAnswers(@RequestBody List<SM_Survey_DTO> answers) {
+        UsernamePasswordAuthenticationToken auth = (UsernamePasswordAuthenticationToken) SecurityContextHolder
+                .getContext().getAuthentication();
+        // 유저 세션아이디 보안 컨텍스트에서 가져오기
+        String sessionId = auth.getPrincipal().toString();
         for (SM_Survey_DTO answerDTO : answers) {
             // SurveyOwnAnswer 저장
             SurveyOwnAnswer answer = new SurveyOwnAnswer();
@@ -344,7 +363,7 @@ public class SM_Controller {
             // SurveyOwnResult 저장
             SurveyOwnResult result = new SurveyOwnResult();
             result.setSurveyExecutionId(answerDTO.getSurveyExecutionId());
-            result.setSessionId(answerDTO.getSessionId());
+            result.setSessionId(sessionId);
             result.setSurveyQuestionId(answerDTO.getSurveyQuestionId());
             result.setSurveyAnswerId(answer.getSurveyAnswerId());
 

@@ -8,7 +8,8 @@ import java.util.List;
 import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
-
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 
@@ -174,11 +175,13 @@ public class OP_Controller {
     @Autowired
     private UOC_Repository uoc_repository;
 
-    @GetMapping("/{sessionId}/coursesinfo")
+    @GetMapping("/coursesinfo")
     @Operation(summary = "사용자의 과정 및 과목 상세 조회", description = "사용자 ID(sessionId)를 기반으로 각 과정의 과목 상세 정보를 반환합니다.")
-    public List<Map<String, String>> getUserCoursesAndSubjectsInfo(
-            @Parameter(description = "사용자 ID", required = true) @PathVariable String sessionId) {
-
+    public List<Map<String, String>> getUserCoursesAndSubjectsInfo() {
+        UsernamePasswordAuthenticationToken auth = (UsernamePasswordAuthenticationToken) SecurityContextHolder
+                                .getContext().getAuthentication();
+                // 유저 세션아이디 보안 컨텍스트에서 가져오기
+                String sessionId = auth.getPrincipal().toString();
         // 사용자별 과정 목록 조회
         List<UserOwnCourse> userCourses = uoc_repository.findBySessionId(sessionId);
 
