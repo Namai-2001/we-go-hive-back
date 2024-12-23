@@ -45,7 +45,7 @@ public class HomeController {
   @GetMapping("/RandSubjectVid")
   public ResponseEntity<?> randSubjectVid() {
     String courseId = "individual-subjects";
-    String officerSessionId = "2b3c4d5e-6f7g-8h9i-0j1k-l2m3n4o5p6q7";
+    String officerSessionId = "12g8h9i0j-1k2l-m3n4-o5p6-q7r8s9t0u1v";
     Optional<List<HomeOfferedSubjectsProjection>> opSpecificSubjects = homeOfferedSubjectRepository.findByCourseIdAndOfficerSessionId(courseId, officerSessionId);
 
     if(opSpecificSubjects.isPresent()){

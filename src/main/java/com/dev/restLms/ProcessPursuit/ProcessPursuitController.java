@@ -49,7 +49,7 @@ public class ProcessPursuitController {
         
         for (Course course : courses) {
 
-            if(Long.parseLong(course.getEnrollEndDate()) >= Long.parseLong(LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"))) || !course.getCourseTitle().equals("개별과목")){
+            if(Long.parseLong(course.getEnrollEndDate()) >= Long.parseLong(LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"))) && !course.getCourseTitle().equals("개별과목")){
 
                 // 수강자 수 조회
                 List<ProcessPursuitUserOwnCourse> userCount = processPursuitUserOwnCourseRepository.findByCourseId(course.getCourseId());
