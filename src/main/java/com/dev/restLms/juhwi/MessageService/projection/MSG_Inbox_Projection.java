@@ -1,7 +1,7 @@
 package com.dev.restLms.juhwi.MessageService.projection;
 
 // 받은 쪽지함 관점 조회 프로젝션
-public interface Ch_M_Rs_Projection {
+public interface MSG_Inbox_Projection {
 
     // 쪽지 고유 키
     String getMessageId();

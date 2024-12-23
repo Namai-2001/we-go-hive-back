@@ -1,6 +1,6 @@
 package com.dev.restLms.juhwi.MessageService.projection;
 
-public interface Ch_M_MASR_Projection {
+public interface MSG_Admin_Projection {
 
     // 쪽지 고유 키
     String getMessageId();

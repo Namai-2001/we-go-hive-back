@@ -1,7 +1,7 @@
 package com.dev.restLms.juhwi.MessageService.projection;
 
 // 보낸 쪽지함 프로젝션
-public interface Ch_M_Ss_Projcction {
+public interface MSG_Sent_Projcction {
 
     // 쪽지 고유 키
     String getMessageId();
@@ -17,4 +17,7 @@ public interface Ch_M_Ss_Projcction {
 
     // 보낸 시간 표시
     String getSendTime();
+
+    // 보낸 쪽지함 읽음 표시
+    String getSenderCheck();
 }
