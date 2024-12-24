@@ -5,6 +5,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -140,14 +141,14 @@ public class SID_Controller {
                 userSessionId, offeredSubjectsId, "F");
 
         if (existingAssignmentF.isPresent()) {
-            return ResponseEntity.badRequest().body("이미 과정에 등록되어 있습니다.");
+            return ResponseEntity.status(HttpStatus.CONFLICT).body("이미 과정에 등록되어 있습니다.");
         }
 
         Optional<UserOwnAssignment> existingAssignmentT = sid_uoa_repository.findByUserSessionIdAndOfferedSubjectsIdAndSubjectAcceptCategory(
                 userSessionId, offeredSubjectsId, "T");
 
         if (existingAssignmentT.isPresent()) {
-            return ResponseEntity.badRequest().body("이미 신청한 과목입니다.");
+            return ResponseEntity.status(HttpStatus.CONFLICT).body("이미 신청한 과목입니다.");
         }
 
         UserOwnAssignment newAssignment = UserOwnAssignment.builder()
