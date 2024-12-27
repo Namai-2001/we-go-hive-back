@@ -1,5 +1,6 @@
 package com.dev.restLms.sechan.teacherAssignment.controller;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -16,12 +17,18 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import com.dev.restLms.entity.Assignment;
+import com.dev.restLms.entity.FileInfo;
 import com.dev.restLms.entity.OfferedSubjects;
 import com.dev.restLms.entity.Subject;
+import com.dev.restLms.entity.User;
+import com.dev.restLms.entity.UserOwnAssignmentEvaluation;
 import com.dev.restLms.sechan.teacherAssignment.projection.TA_A_Projection;
 import com.dev.restLms.sechan.teacherAssignment.repository.TA_A_Repository;
+import com.dev.restLms.sechan.teacherAssignment.repository.TA_FI_Repository;
 import com.dev.restLms.sechan.teacherAssignment.repository.TA_OS_Repository;
 import com.dev.restLms.sechan.teacherAssignment.repository.TA_S_Repository;
+import com.dev.restLms.sechan.teacherAssignment.repository.TA_UOAE_Repository;
+import com.dev.restLms.sechan.teacherAssignment.repository.TA_U_Repository;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -40,14 +47,35 @@ public class TA_Controller {
     @Autowired
     private TA_S_Repository ta_s_repository;
 
+    @Autowired
+    private TA_UOAE_Repository ta_uoae_repository;
+
+    @Autowired
+    private TA_FI_Repository ta_fi_repository;
+
+    @Autowired
+    private TA_U_Repository ta_u_repository;
+
     // 날짜 형식 변환 함수
+    // public static String convertTo8DigitDate(String dateString) {
+    // DateTimeFormatter inputFormatter =
+    // DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
+    // DateTimeFormatter outputFormatter = DateTimeFormatter.ofPattern("yyyy년 M월
+    // d일");
+
+    // LocalDateTime dateTime = LocalDateTime.parse(dateString, inputFormatter);
+
+    // return dateTime.toLocalDate().format(outputFormatter);
+    // }
+
     public static String convertTo8DigitDate(String dateString) {
-        DateTimeFormatter inputFormatter = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
-        DateTimeFormatter outputFormatter = DateTimeFormatter.ofPattern("yyyy년 M월 d일");
+        DateTimeFormatter inputFormatter = DateTimeFormatter.ofPattern("yyyyMMdd"); // 입력 형식
+        DateTimeFormatter outputFormatter = DateTimeFormatter.ofPattern("yyyyMMdd"); // 출력 형식
 
-        LocalDateTime dateTime = LocalDateTime.parse(dateString, inputFormatter);
+        LocalDateTime dateTime = LocalDate.parse(dateString, inputFormatter).atStartOfDay(); // LocalDate로 파싱 후
+                                                                                             // LocalDateTime으로 변환
 
-        return dateTime.toLocalDate().format(outputFormatter);
+        return dateTime.format(outputFormatter);
     }
 
     // 과제 조회
@@ -164,7 +192,7 @@ public class TA_Controller {
         return ResponseEntity.ok(response);
     }
 
-    // 과제 등록
+    // 과제 등록록
     @PostMapping("/createAssignment")
     @Operation(summary = "과제 등록", description = "선택한 과목에 새로운 과제를 등록")
     public ResponseEntity<?> createAssignment(@RequestBody Map<String, Object> assignmentData) {
@@ -174,8 +202,8 @@ public class TA_Controller {
 
         String offeredSubjectsId = (String) assignmentData.get("offeredSubjectsId");
         String assignmentTitle = (String) assignmentData.get("assignmentTitle");
-        String deadlineRaw = (String) assignmentData.get("deadline");
-        String noticeNoRaw = (String) assignmentData.get("noticeNo");
+        String deadlineRaw = (String) assignmentData.get("deadline"); // yyyyMMdd 형식
+        String noticeNoRaw = (String) assignmentData.get("noticeNo"); // yyyyMMdd 형식
         String cutline = (String) assignmentData.get("cutline");
         String assignmentContent = (String) assignmentData.get("assignmentContent");
 
@@ -191,11 +219,113 @@ public class TA_Controller {
         assignment.setNoticeNo(noticeNo);
         assignment.setCutline(cutline);
         assignment.setAssignmentContent(assignmentContent);
-        assignment.setTeacherSessionId(teacherSessionId); 
+        assignment.setTeacherSessionId(teacherSessionId);
 
         // 저장
         ta_a_repository.save(assignment);
 
         return ResponseEntity.ok("과제가 성공적으로 등록되었습니다.");
+    }
+
+    // 학생별 과제 조회
+    @GetMapping("/submissions/{assignmentId}")
+    @Operation(summary = "학생별 과제 제출 조회", description = "특정 과제에 제출된 학생들의 상태와 점수를 조회")
+    public ResponseEntity<?> getSubmissions(@PathVariable String assignmentId) {
+        UsernamePasswordAuthenticationToken auth = (UsernamePasswordAuthenticationToken) SecurityContextHolder
+                .getContext().getAuthentication();
+        String teacherSessionId = auth.getPrincipal().toString();
+
+        // 과제 제출 조회
+        List<UserOwnAssignmentEvaluation> evaluations = ta_uoae_repository
+                .findByAssignmentIdAndTeacherSessionId(assignmentId, teacherSessionId);
+
+        if (evaluations.isEmpty()) {
+            return ResponseEntity.ok("제출된 과제가 없습니다.");
+        }
+
+        // 학생 세션 ID 목록 추출
+        List<String> sessionIds = evaluations.stream()
+                .map(UserOwnAssignmentEvaluation::getUoaeSessionId)
+                .distinct()
+                .toList();
+
+        // 학생 정보 조회
+        List<User> users = ta_u_repository.findBySessionIdIn(sessionIds);
+
+        // 학생 정보 매핑
+        Map<String, User> userMap = new HashMap<>();
+        for (User user : users) {
+            userMap.put(user.getSessionId(), user);
+        }
+
+        List<Map<String, Object>> responseList = new ArrayList<>();
+        for (UserOwnAssignmentEvaluation evaluation : evaluations) {
+            Map<String, Object> evaluationData = new HashMap<>();
+            evaluationData.put("submissionId", evaluation.getSubmissionId());
+            evaluationData.put("uoaeSessionId", evaluation.getUoaeSessionId());
+            evaluationData.put("score", evaluation.getScore());
+            evaluationData.put("isSubmit", evaluation.getIsSubmit());
+            evaluationData.put("fileNo", evaluation.getFileNo());
+
+            // 파일 정보 조회
+            FileInfo fileInfo = ta_fi_repository.findByFileNo(evaluation.getFileNo());
+            if (fileInfo != null) {
+                evaluationData.put("fileName", fileInfo.getOrgFileNm());
+                evaluationData.put("downloadPath", "/files/" + fileInfo.getEncFileNm());
+            }
+
+            // 학생 정보 추가
+            User user = userMap.get(evaluation.getUoaeSessionId());
+            if (user != null) {
+                evaluationData.put("userId", user.getUserId());
+                evaluationData.put("userName", user.getUserName());
+            }
+
+            responseList.add(evaluationData);
+        }
+
+        return ResponseEntity.ok(responseList);
+    }
+
+    @PostMapping("/updateScore/{submissionId}")
+    @Operation(summary = "점수 수정", description = "학생 과제 점수를 수정")
+    public ResponseEntity<?> updateScore(@PathVariable String submissionId,
+            @RequestBody Map<String, String> scoreData) {
+        UsernamePasswordAuthenticationToken auth = (UsernamePasswordAuthenticationToken) SecurityContextHolder
+                .getContext().getAuthentication();
+        String teacherSessionId = auth.getPrincipal().toString();
+
+        Optional<UserOwnAssignmentEvaluation> evaluationOpt = ta_uoae_repository
+                .findBySubmissionIdAndTeacherSessionId(submissionId, teacherSessionId);
+
+        if (evaluationOpt.isPresent()) {
+            UserOwnAssignmentEvaluation evaluation = evaluationOpt.get();
+
+            // 점수 수정
+            String newScore = scoreData.get("score");
+            evaluation.setScore(newScore);
+            evaluation.setTeacherSessionId(teacherSessionId);
+
+            // 저장
+            ta_uoae_repository.save(evaluation);
+
+            return ResponseEntity.ok("점수가 성공적으로 수정되었습니다.");
+        }
+
+        return ResponseEntity.status(404).body("해당 제출 정보를 찾을 수 없습니다.");
+    }
+
+    // 파일 다운로드 링크
+    @GetMapping("/download/{fileNo}")
+    @Operation(summary = "파일 다운로드", description = "과제 제출 파일 다운로드 링크 제공")
+    public ResponseEntity<?> downloadFile(@PathVariable String fileNo) {
+        FileInfo fileInfo = ta_fi_repository.findByFileNo(fileNo);
+
+        if (fileInfo != null) {
+            String fileDownloadLink = "/files/" + fileInfo.getEncFileNm();
+            return ResponseEntity.ok(Map.of("downloadLink", fileDownloadLink));
+        }
+
+        return ResponseEntity.status(404).body("파일 정보를 찾을 수 없습니다.");
     }
 }

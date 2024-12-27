@@ -25,6 +25,7 @@ public class CourseOwnSubject {
     private String courseId;
     private String officerSessionId;
     private String subjectId;
+    private String subjectApproval; //과목 승인 여부
 
     @PrePersist
     public void generateUUID() {

@@ -10,7 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
+// import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -43,7 +43,7 @@ public class SR_Controller {
     @Autowired
     private SR_U_Repository sr_u_repository;
 
-    @GetMapping("/enrolled/")
+    @GetMapping("/enrolled")
     @Operation(summary = "수강 학생 조회", description = "강사가 개설한 과목별 수강 학생을 조회")
     public ResponseEntity<?> getEnrolledStudents() {
         UsernamePasswordAuthenticationToken auth = (UsernamePasswordAuthenticationToken) SecurityContextHolder

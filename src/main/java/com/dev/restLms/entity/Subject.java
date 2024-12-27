@@ -24,6 +24,7 @@ public class Subject {
     private String subjectCategory;
     private String subjectImageLink;
     private String subjectPromotion;
+    private String teacherSessionId;
 
     @PrePersist
     public void generateUUID() {
