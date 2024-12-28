@@ -1,5 +1,10 @@
 package com.dev.restLms.sechan.teacherAssignment.controller;
 
+// import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+// import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -9,8 +14,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import java.net.URLEncoder;
+// import java.nio.charset.StandardCharsets;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
+// import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -316,16 +325,40 @@ public class TA_Controller {
     }
 
     // 파일 다운로드 링크
+    // @GetMapping("/download/{fileNo}")
+    // @Operation(summary = "파일 다운로드", description = "과제 제출 파일 다운로드 링크 제공")
+    // public ResponseEntity<?> downloadFile(@PathVariable String fileNo) {
+    // FileInfo fileInfo = ta_fi_repository.findByFileNo(fileNo);
+
+    // if (fileInfo != null) {
+    // String fileDownloadLink = "/files/" + fileInfo.getEncFileNm();
+    // return ResponseEntity.ok(Map.of("downloadLink", fileDownloadLink));
+    // }
+
+    // return ResponseEntity.status(404).body("파일 정보를 찾을 수 없습니다.");
+    // }
+
     @GetMapping("/download/{fileNo}")
-    @Operation(summary = "파일 다운로드", description = "과제 제출 파일 다운로드 링크 제공")
     public ResponseEntity<?> downloadFile(@PathVariable String fileNo) {
         FileInfo fileInfo = ta_fi_repository.findByFileNo(fileNo);
 
         if (fileInfo != null) {
-            String fileDownloadLink = "/files/" + fileInfo.getEncFileNm();
-            return ResponseEntity.ok(Map.of("downloadLink", fileDownloadLink));
+            try {
+                String encodedFileName = URLEncoder.encode(fileInfo.getOrgFileNm(), StandardCharsets.UTF_8)
+                        .replace("+", "%20"); // 공백 문자 처리
+
+                String contentDisposition = "attachment; filename=\"" + encodedFileName + "\"";
+
+                return ResponseEntity.ok()
+                        .header("Content-Disposition", contentDisposition)
+                        .header("Content-Type", "application/octet-stream")
+                        .body(Files.readAllBytes(Paths.get(fileInfo.getFilePath(), fileInfo.getEncFileNm())));
+            } catch (Exception e) {
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                        .body("파일 처리 중 오류가 발생했습니다.");
+            }
         }
 
-        return ResponseEntity.status(404).body("파일 정보를 찾을 수 없습니다.");
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body("파일 정보를 찾을 수 없습니다.");
     }
 }

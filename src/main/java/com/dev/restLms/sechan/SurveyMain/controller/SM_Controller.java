@@ -37,6 +37,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 
 @RestController
@@ -85,7 +86,6 @@ public class SM_Controller {
     public List<Map<String, Object>> getCourseSurveyStatus() {
         UsernamePasswordAuthenticationToken auth = (UsernamePasswordAuthenticationToken) SecurityContextHolder
                 .getContext().getAuthentication();
-        // 유저 세션아이디 보안 컨텍스트에서 가져오기
         String sessionId = auth.getPrincipal().toString();
         List<Map<String, Object>> courseResponse = new ArrayList<>();
 
@@ -119,17 +119,32 @@ public class SM_Controller {
                     }
                 }
 
+                String courseStartDate = course.getCourseStartDate();
                 String courseEndDate = course.getCourseEndDate();
+
+                // 중간 날짜 계산
+                LocalDate midDate = null;
+                if (courseStartDate != null && courseEndDate != null) {
+                    LocalDate startDate = LocalDate.parse(courseStartDate, DateTimeFormatter.ofPattern("yyyyMMdd"));
+                    LocalDate endDate = LocalDate.parse(courseEndDate, DateTimeFormatter.ofPattern("yyyyMMdd"));
+                    midDate = startDate.plusDays((ChronoUnit.DAYS.between(startDate, endDate)) / 2);
+                }
+
+                // 설문 가능 여부 결정
                 String surveyStatus = isSurveyCompleted
-                        ? "F"
-                        : ("T".equals(courseApproval) && courseEndDate != null && courseEndDate.compareTo(today) >= 0)
-                                ? "T"
-                                : "F";
+                        ? "F" // 설문이 완료된 경우
+                        : ("F".equals(courseApproval) && midDate != null
+                                && today.compareTo(midDate.format(DateTimeFormatter.ofPattern("yyyyMMdd"))) >= 0)
+                                        ? "T" // 과정 승인 "F"이며, 중간 날짜 이후 설문 가능
+                                        : "F"; // 기본 설문 불가능
 
                 String formattedCourseEndDate = courseEndDate != null ? convertTo8DigitDate(courseEndDate) : null;
+                String formattedCourseStartDate = courseStartDate != null ? convertTo8DigitDate(courseStartDate) : null;
 
                 courseData.put("courseId", course.getCourseId());
                 courseData.put("courseTitle", course.getCourseTitle());
+                courseData.put("courseStartDate", formattedCourseStartDate);
+                courseData.put("courseMidDate", midDate);
                 courseData.put("courseEndDate", formattedCourseEndDate);
                 courseData.put("courseApproval", courseApproval);
                 courseData.put("surveyStatus", surveyStatus);
@@ -211,13 +226,15 @@ public class SM_Controller {
 
         // ------------ 과정 데이터 조회 ------------
         List<Map<String, Object>> courseResponse = new ArrayList<>();
-        List<SM_UOC_Projection> userCourses = sm_uoc_repository.findBySessionId(sessionId);
 
+        // 사용자 과정 조회
+        List<SM_UOC_Projection> userCourses = sm_uoc_repository.findBySessionId(sessionId);
         List<String> courseIds = new ArrayList<>();
         for (SM_UOC_Projection userCourse : userCourses) {
             courseIds.add(userCourse.getCourseId());
         }
 
+        // 과정 정보 조회
         List<SM_C_Projection> courses = sm_c_repository.findByCourseIdIn(courseIds);
         String today = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
 
@@ -240,17 +257,32 @@ public class SM_Controller {
                     }
                 }
 
+                String courseStartDate = course.getCourseStartDate();
                 String courseEndDate = course.getCourseEndDate();
+
+                // 중간 날짜 계산
+                LocalDate midDate = null;
+                if (courseStartDate != null && courseEndDate != null) {
+                    LocalDate startDate = LocalDate.parse(courseStartDate, DateTimeFormatter.ofPattern("yyyyMMdd"));
+                    LocalDate endDate = LocalDate.parse(courseEndDate, DateTimeFormatter.ofPattern("yyyyMMdd"));
+                    midDate = startDate.plusDays((ChronoUnit.DAYS.between(startDate, endDate)) / 2);
+                }
+
+                // 설문 가능 여부 결정
                 String surveyStatus = isSurveyCompleted
-                        ? "F"
-                        : ("T".equals(courseApproval) && courseEndDate != null && courseEndDate.compareTo(today) >= 0)
-                                ? "T"
-                                : "F";
+                        ? "F" // 설문이 완료된 경우
+                        : ("F".equals(courseApproval) && midDate != null
+                                && today.compareTo(midDate.format(DateTimeFormatter.ofPattern("yyyyMMdd"))) >= 0)
+                                        ? "T" // 과정 승인 "F"이며, 중간 날짜 이후 설문 가능
+                                        : "F"; // 기본 설문 불가능
 
                 String formattedCourseEndDate = courseEndDate != null ? convertTo8DigitDate(courseEndDate) : null;
+                String formattedCourseStartDate = courseStartDate != null ? convertTo8DigitDate(courseStartDate) : null;
 
                 courseData.put("courseId", course.getCourseId());
                 courseData.put("courseTitle", course.getCourseTitle());
+                courseData.put("courseStartDate", formattedCourseStartDate);
+                courseData.put("courseMidDate", midDate);
                 courseData.put("courseEndDate", formattedCourseEndDate);
                 courseData.put("courseApproval", courseApproval);
                 courseData.put("surveyStatus", surveyStatus);
@@ -326,11 +358,11 @@ public class SM_Controller {
             @RequestParam(required = false) String courseId,
             @RequestParam(required = false) String offeredSubjectsId) {
 
-        // 과정인지 과목인지 판단
-        if (courseId != null) {
-            return sm_sq_repository.findBySurveyCategory("course");
-        } else if (offeredSubjectsId != null) {
+        // 과정인지 과목인지 판단(만약 둘다 들어오면 과목으로 우선처리리)
+        if (offeredSubjectsId != null) {
             return sm_sq_repository.findBySurveyCategory("subject");
+        } else if (courseId != null) {
+            return sm_sq_repository.findBySurveyCategory("course");
         } else {
             throw new IllegalArgumentException("courseId 또는 offeredSubjectsId 중 하나를 입력");
         }
