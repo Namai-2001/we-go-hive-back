@@ -26,6 +26,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import com.dev.restLms.entity.Assignment;
+import com.dev.restLms.entity.Course;
 import com.dev.restLms.entity.FileInfo;
 import com.dev.restLms.entity.OfferedSubjects;
 import com.dev.restLms.entity.Subject;
@@ -33,6 +34,7 @@ import com.dev.restLms.entity.User;
 import com.dev.restLms.entity.UserOwnAssignmentEvaluation;
 import com.dev.restLms.sechan.teacherAssignment.projection.TA_A_Projection;
 import com.dev.restLms.sechan.teacherAssignment.repository.TA_A_Repository;
+import com.dev.restLms.sechan.teacherAssignment.repository.TA_C_Repository;
 import com.dev.restLms.sechan.teacherAssignment.repository.TA_FI_Repository;
 import com.dev.restLms.sechan.teacherAssignment.repository.TA_OS_Repository;
 import com.dev.restLms.sechan.teacherAssignment.repository.TA_S_Repository;
@@ -65,6 +67,9 @@ public class TA_Controller {
     @Autowired
     private TA_U_Repository ta_u_repository;
 
+    @Autowired
+    private TA_C_Repository ta_c_repository;
+
     // 날짜 형식 변환 함수
     // public static String convertTo8DigitDate(String dateString) {
     // DateTimeFormatter inputFormatter =
@@ -93,17 +98,22 @@ public class TA_Controller {
     public ResponseEntity<?> getSubjectAssignments() {
         UsernamePasswordAuthenticationToken auth = (UsernamePasswordAuthenticationToken) SecurityContextHolder
                 .getContext().getAuthentication();
+
         // 유저 세션아이디 보안 컨텍스트에서 가져오기
         String teacherSessionId = auth.getPrincipal().toString();
+
+        // 해당 강사가 개설한 과목 가져오기
         List<OfferedSubjects> subjects = ta_os_repository.findByTeacherSessionId(teacherSessionId);
 
         if (!subjects.isEmpty()) {
             List<Map<String, Object>> responseList = new ArrayList<>();
 
             for (OfferedSubjects subject : subjects) {
+                // 과목 정보 가져오기
                 Optional<Subject> subjectOpt = ta_s_repository.findBySubjectId(subject.getSubjectId());
                 String subjectName = subjectOpt.map(Subject::getSubjectName).orElse("Unknown");
 
+                // 과목에 포함된 과제 가져오기
                 List<Assignment> assignments = ta_a_repository.findByOfferedSubjectsId(subject.getOfferedSubjectsId());
                 List<Map<String, Object>> assignmentProjections = new ArrayList<>();
 
@@ -126,6 +136,15 @@ public class TA_Controller {
                 subjectData.put("offeredSubjectsId", subject.getOfferedSubjectsId());
                 subjectData.put("subjectName", subjectName);
                 subjectData.put("assignments", assignmentProjections);
+
+                // courseId에 따른 과정명 설정
+                if ("individual-subjects".equals(subject.getCourseId())) {
+                    subjectData.put("courseTitle", "개별 과목");
+                } else {
+                    Optional<Course> courseOpt = ta_c_repository.findById(subject.getCourseId());
+                    String courseTitle = courseOpt.map(Course::getCourseTitle).orElse("과정 정보 없음");
+                    subjectData.put("courseTitle", courseTitle);
+                }
 
                 responseList.add(subjectData);
             }

@@ -109,54 +109,55 @@ public class SLP_Controller {
         // 결과 리스트 초기화
         List<Map<String, String>> result = new ArrayList<>();
 
-        // SUBJECTNAME CASE : 서브젝트의 필드 SubjectName에 searchParam의 문자열이 포함되는가 에 대한 조회
-        List<Subject> searchSubject = slp_s_repository.findBySubjectNameContaining(searchParam);
+        // 검색 조건 처리
+        List<String> subjectIds = new ArrayList<>();
+        List<String> teacherSessionIds = new ArrayList<>();
 
-        // 과목에 대한 아이디들
-        List<String> subId = new ArrayList<>();
-        for (Subject eachSubject : searchSubject) {
-            subId.add(eachSubject.getSubjectId());
-        }
+        // 검색어가 비어있지 않은 경우
+        if (!searchParam.isBlank()) {
+            if (type.equalsIgnoreCase("ALL") || type.equalsIgnoreCase("SUBJECTNAME")) {
+                // SubjectName 필드에서 검색어에 해당하는 과목 ID 조회
+                List<Subject> searchSubjects = slp_s_repository.findBySubjectNameContaining(searchParam);
+                for (Subject subject : searchSubjects) {
+                    subjectIds.add(subject.getSubjectId());
+                }
+            }
 
-        // 개설 과목에 대한 아이디들
-        
-
-        List<User> searchUsers = slp_u_repository.findByUserNameContaining(searchParam);
-        List<String> userId = new ArrayList<>();
-        for (User user : searchUsers) {
-            userId.add(user.getSessionId());
+            if (type.equalsIgnoreCase("ALL") || type.equalsIgnoreCase("TEACHERNAME")) {
+                // UserName 필드에서 검색어에 해당하는 강사 ID 조회
+                List<User> searchUsers = slp_u_repository.findByUserNameContaining(searchParam);
+                for (User user : searchUsers) {
+                    teacherSessionIds.add(user.getSessionId());
+                }
+            }
         }
 
         Page<OfferedSubjects> offeredSubjectsPage;
 
-        if (type.equals("ALL")) {
-            offeredSubjectsPage = slp_os_repository.findByTeacherSessionIdInOrSubjectIdIn(userId, subId,
-                    pageable);
-                    for (OfferedSubjects offeredSubjects : offeredSubjectsPage) {
-                        
-                    }
-        } else if (type.equals("SUBJECTNAME")) {
-            offeredSubjectsPage = slp_os_repository.findBySubjectIdIn(subId, pageable);
-            for (OfferedSubjects offeredSubjects : offeredSubjectsPage) {
-                
+        // 검색 조건에 따른 필터링
+        if (type.equalsIgnoreCase("ALL")) {
+            if (subjectIds.isEmpty() && teacherSessionIds.isEmpty()) {
+                // 검색어가 없을 경우, courseId가 "individual-subjects"인 모든 OfferedSubjects 조회
+                offeredSubjectsPage = slp_os_repository.findByCourseId("individual-subjects", pageable);
+            } else {
+                // 과목 ID와 강사 ID 모두 포함된 검색 조건
+                offeredSubjectsPage = slp_os_repository.findByCourseIdAndSubjectIdInOrTeacherSessionIdIn(
+                        "individual-subjects", subjectIds, teacherSessionIds, pageable);
             }
-        } else if (type.equals("TEACHERNAME")) {
-            offeredSubjectsPage = slp_os_repository.findByTeacherSessionIdIn(userId, pageable);
-            for (OfferedSubjects offeredSubjects : offeredSubjectsPage) {
-                
-            }
+        } else if (type.equalsIgnoreCase("SUBJECTNAME")) {
+            offeredSubjectsPage = slp_os_repository.findByCourseIdAndSubjectIdIn(
+                    "individual-subjects", subjectIds, pageable);
+        } else if (type.equalsIgnoreCase("TEACHERNAME")) {
+            offeredSubjectsPage = slp_os_repository.findByCourseIdAndTeacherSessionIdIn(
+                    "individual-subjects", teacherSessionIds, pageable);
         } else {
             // 기본 값
-            offeredSubjectsPage = slp_os_repository.findAll(pageable);
+            offeredSubjectsPage = slp_os_repository.findByCourseId("individual-subjects", pageable);
         }
 
-        // OfferredSubjects에서 모든 개설 과목 조회 (페이지네이션 적용)
-        // Page<OfferedSubjects> offeredSubjectsPage =
-        // slp_os_repository.findAll(pageable);
-
+        // OfferedSubjects 데이터 매핑
         for (OfferedSubjects os : offeredSubjectsPage) {
             Map<String, String> details = new HashMap<>();
-
             details.put("offeredSubjectsId", os.getOfferedSubjectsId());
 
             // 과목 정보 조회
@@ -192,4 +193,5 @@ public class SLP_Controller {
 
         return response;
     }
+
 }

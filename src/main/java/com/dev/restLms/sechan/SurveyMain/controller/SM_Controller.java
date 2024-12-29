@@ -5,7 +5,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.GetMapping;
-
+// import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -35,8 +35,9 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
+// import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 
@@ -72,13 +73,35 @@ public class SM_Controller {
     private SM_SOR_Repository sm_sor_repository;
 
     // 날짜 형식 변환 함수
+    // public static String convertTo8DigitDate(String dateString) {
+    // DateTimeFormatter inputFormatter =
+    // DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
+    // DateTimeFormatter outputFormatter = DateTimeFormatter.ofPattern("yyyy년 M월
+    // d일");
+
+    // LocalDateTime dateTime = LocalDateTime.parse(dateString, inputFormatter);
+
+    // return dateTime.toLocalDate().format(outputFormatter);
+    // }
+
+    // 날짜 형식 변환 함수
     public static String convertTo8DigitDate(String dateString) {
-        DateTimeFormatter inputFormatter = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
-        DateTimeFormatter outputFormatter = DateTimeFormatter.ofPattern("yyyy년 M월 d일");
+        try {
+            // 입력값 유효성 검증
+            if (dateString == null || !dateString.matches("\\d{14}")) {
+                throw new IllegalArgumentException("Invalid date format: " + dateString);
+            }
 
-        LocalDateTime dateTime = LocalDateTime.parse(dateString, inputFormatter);
+            String dateOnly = dateString.substring(0, 8); // 날짜 부분만 추출
+            DateTimeFormatter inputFormatter = DateTimeFormatter.ofPattern("yyyyMMdd");
+            DateTimeFormatter outputFormatter = DateTimeFormatter.ofPattern("yyyy년 M월 d일");
 
-        return dateTime.toLocalDate().format(outputFormatter);
+            LocalDate date = LocalDate.parse(dateOnly, inputFormatter);
+
+            return date.format(outputFormatter);
+        } catch (DateTimeParseException e) {
+            throw new IllegalArgumentException("Failed to parse date: " + dateString, e);
+        }
     }
 
     @GetMapping("survey/courses")
@@ -86,6 +109,7 @@ public class SM_Controller {
     public List<Map<String, Object>> getCourseSurveyStatus() {
         UsernamePasswordAuthenticationToken auth = (UsernamePasswordAuthenticationToken) SecurityContextHolder
                 .getContext().getAuthentication();
+        // 유저 세션아이디 보안 컨텍스트에서 가져오기
         String sessionId = auth.getPrincipal().toString();
         List<Map<String, Object>> courseResponse = new ArrayList<>();
 
@@ -102,54 +126,56 @@ public class SM_Controller {
 
         for (SM_C_Projection course : courses) {
             Map<String, Object> courseData = new HashMap<>();
-            Optional<SurveyExecution> surveyExecutionOpt = sm_se_repository.findByCourseId(course.getCourseId());
+            List<SurveyExecution> surveyExecutions = sm_se_repository.findByCourseId(course.getCourseId());
 
-            if (surveyExecutionOpt.isPresent()) {
-                SurveyExecution surveyExecution = surveyExecutionOpt.get();
+            if (!surveyExecutions.isEmpty()) {
+                for (SurveyExecution surveyExecution : surveyExecutions) {
+                    // 설문 완료 여부 확인
+                    boolean isSurveyCompleted = sm_sor_repository.existsBySurveyExecutionIdAndSessionId(
+                            surveyExecution.getSurveyExecutionId(), sessionId);
 
-                // 설문 완료 여부 확인
-                boolean isSurveyCompleted = sm_sor_repository.existsBySurveyExecutionIdAndSessionId(
-                        surveyExecution.getSurveyExecutionId(), sessionId);
-
-                String courseApproval = "F";
-                for (SM_UOC_Projection userCourse : userCourses) {
-                    if (userCourse.getCourseId().equals(course.getCourseId())) {
-                        courseApproval = userCourse.getCourseApproval();
-                        break;
+                    String courseApproval = "F";
+                    for (SM_UOC_Projection userCourse : userCourses) {
+                        if (userCourse.getCourseId().equals(course.getCourseId())) {
+                            courseApproval = userCourse.getCourseApproval();
+                            break;
+                        }
                     }
+
+                    String courseStartDate = course.getCourseStartDate();
+                    String courseEndDate = course.getCourseEndDate();
+
+                    // 중간 날짜 계산
+                    LocalDate midDate = null;
+                    if (courseStartDate != null && courseEndDate != null) {
+                        LocalDate startDate = LocalDate.parse(courseStartDate.substring(0, 8),
+                                DateTimeFormatter.ofPattern("yyyyMMdd"));
+                        LocalDate endDate = LocalDate.parse(courseEndDate.substring(0, 8),
+                                DateTimeFormatter.ofPattern("yyyyMMdd"));
+                        midDate = startDate.plusDays((ChronoUnit.DAYS.between(startDate, endDate)) / 2);
+                    }
+
+                    // 설문 가능 여부 결정
+                    String surveyStatus = isSurveyCompleted
+                            ? "F" // 설문이 완료된 경우
+                            : ("F".equals(courseApproval) && midDate != null
+                                    && today.compareTo(midDate.format(DateTimeFormatter.ofPattern("yyyyMMdd"))) >= 0)
+                                            ? "T" // 과정 승인 "F"이며, 중간 날짜 이후 설문 가능
+                                            : "F"; // 기본 설문 불가능
+
+                    String formattedCourseEndDate = courseEndDate != null ? convertTo8DigitDate(courseEndDate) : null;
+                    String formattedCourseStartDate = courseStartDate != null ? convertTo8DigitDate(courseStartDate)
+                            : null;
+
+                    courseData.put("courseId", course.getCourseId());
+                    courseData.put("courseTitle", course.getCourseTitle());
+                    courseData.put("courseStartDate", formattedCourseStartDate);
+                    courseData.put("courseMidDate", midDate);
+                    courseData.put("courseEndDate", formattedCourseEndDate);
+                    courseData.put("courseApproval", courseApproval);
+                    courseData.put("surveyStatus", surveyStatus);
+                    courseData.put("surveyExecutionId", surveyExecution.getSurveyExecutionId());
                 }
-
-                String courseStartDate = course.getCourseStartDate();
-                String courseEndDate = course.getCourseEndDate();
-
-                // 중간 날짜 계산
-                LocalDate midDate = null;
-                if (courseStartDate != null && courseEndDate != null) {
-                    LocalDate startDate = LocalDate.parse(courseStartDate, DateTimeFormatter.ofPattern("yyyyMMdd"));
-                    LocalDate endDate = LocalDate.parse(courseEndDate, DateTimeFormatter.ofPattern("yyyyMMdd"));
-                    midDate = startDate.plusDays((ChronoUnit.DAYS.between(startDate, endDate)) / 2);
-                }
-
-                // 설문 가능 여부 결정
-                String surveyStatus = isSurveyCompleted
-                        ? "F" // 설문이 완료된 경우
-                        : ("F".equals(courseApproval) && midDate != null
-                                && today.compareTo(midDate.format(DateTimeFormatter.ofPattern("yyyyMMdd"))) >= 0)
-                                        ? "T" // 과정 승인 "F"이며, 중간 날짜 이후 설문 가능
-                                        : "F"; // 기본 설문 불가능
-
-                String formattedCourseEndDate = courseEndDate != null ? convertTo8DigitDate(courseEndDate) : null;
-                String formattedCourseStartDate = courseStartDate != null ? convertTo8DigitDate(courseStartDate) : null;
-
-                courseData.put("courseId", course.getCourseId());
-                courseData.put("courseTitle", course.getCourseTitle());
-                courseData.put("courseStartDate", formattedCourseStartDate);
-                courseData.put("courseMidDate", midDate);
-                courseData.put("courseEndDate", formattedCourseEndDate);
-                courseData.put("courseApproval", courseApproval);
-                courseData.put("surveyStatus", surveyStatus);
-                courseData.put("surveyExecutionId", surveyExecution.getSurveyExecutionId());
-
                 courseResponse.add(courseData);
             }
         }
@@ -240,54 +266,56 @@ public class SM_Controller {
 
         for (SM_C_Projection course : courses) {
             Map<String, Object> courseData = new HashMap<>();
-            Optional<SurveyExecution> surveyExecutionOpt = sm_se_repository.findByCourseId(course.getCourseId());
+            List<SurveyExecution> surveyExecutions = sm_se_repository.findByCourseId(course.getCourseId());
 
-            if (surveyExecutionOpt.isPresent()) {
-                SurveyExecution surveyExecution = surveyExecutionOpt.get();
+            if (!surveyExecutions.isEmpty()) {
+                for (SurveyExecution surveyExecution : surveyExecutions) {
+                    // 설문 완료 여부 확인
+                    boolean isSurveyCompleted = sm_sor_repository.existsBySurveyExecutionIdAndSessionId(
+                            surveyExecution.getSurveyExecutionId(), sessionId);
 
-                // 설문 완료 여부 확인
-                boolean isSurveyCompleted = sm_sor_repository.existsBySurveyExecutionIdAndSessionId(
-                        surveyExecution.getSurveyExecutionId(), sessionId);
-
-                String courseApproval = "F";
-                for (SM_UOC_Projection userCourse : userCourses) {
-                    if (userCourse.getCourseId().equals(course.getCourseId())) {
-                        courseApproval = userCourse.getCourseApproval();
-                        break;
+                    String courseApproval = "F";
+                    for (SM_UOC_Projection userCourse : userCourses) {
+                        if (userCourse.getCourseId().equals(course.getCourseId())) {
+                            courseApproval = userCourse.getCourseApproval();
+                            break;
+                        }
                     }
+
+                    String courseStartDate = course.getCourseStartDate();
+                    String courseEndDate = course.getCourseEndDate();
+
+                    // 중간 날짜 계산
+                    LocalDate midDate = null;
+                    if (courseStartDate != null && courseEndDate != null) {
+                        LocalDate startDate = LocalDate.parse(courseStartDate.substring(0, 8),
+                                DateTimeFormatter.ofPattern("yyyyMMdd"));
+                        LocalDate endDate = LocalDate.parse(courseEndDate.substring(0, 8),
+                                DateTimeFormatter.ofPattern("yyyyMMdd"));
+                        midDate = startDate.plusDays((ChronoUnit.DAYS.between(startDate, endDate)) / 2);
+                    }
+
+                    // 설문 가능 여부 결정
+                    String surveyStatus = isSurveyCompleted
+                            ? "F" // 설문이 완료된 경우
+                            : ("F".equals(courseApproval) && midDate != null
+                                    && today.compareTo(midDate.format(DateTimeFormatter.ofPattern("yyyyMMdd"))) >= 0)
+                                            ? "T" // 과정 승인 "F"이며, 중간 날짜 이후 설문 가능
+                                            : "F"; // 기본 설문 불가능
+
+                    String formattedCourseEndDate = courseEndDate != null ? convertTo8DigitDate(courseEndDate) : null;
+                    String formattedCourseStartDate = courseStartDate != null ? convertTo8DigitDate(courseStartDate)
+                            : null;
+
+                    courseData.put("courseId", course.getCourseId());
+                    courseData.put("courseTitle", course.getCourseTitle());
+                    courseData.put("courseStartDate", formattedCourseStartDate);
+                    courseData.put("courseMidDate", midDate);
+                    courseData.put("courseEndDate", formattedCourseEndDate);
+                    courseData.put("courseApproval", courseApproval);
+                    courseData.put("surveyStatus", surveyStatus);
+                    courseData.put("surveyExecutionId", surveyExecution.getSurveyExecutionId());
                 }
-
-                String courseStartDate = course.getCourseStartDate();
-                String courseEndDate = course.getCourseEndDate();
-
-                // 중간 날짜 계산
-                LocalDate midDate = null;
-                if (courseStartDate != null && courseEndDate != null) {
-                    LocalDate startDate = LocalDate.parse(courseStartDate, DateTimeFormatter.ofPattern("yyyyMMdd"));
-                    LocalDate endDate = LocalDate.parse(courseEndDate, DateTimeFormatter.ofPattern("yyyyMMdd"));
-                    midDate = startDate.plusDays((ChronoUnit.DAYS.between(startDate, endDate)) / 2);
-                }
-
-                // 설문 가능 여부 결정
-                String surveyStatus = isSurveyCompleted
-                        ? "F" // 설문이 완료된 경우
-                        : ("F".equals(courseApproval) && midDate != null
-                                && today.compareTo(midDate.format(DateTimeFormatter.ofPattern("yyyyMMdd"))) >= 0)
-                                        ? "T" // 과정 승인 "F"이며, 중간 날짜 이후 설문 가능
-                                        : "F"; // 기본 설문 불가능
-
-                String formattedCourseEndDate = courseEndDate != null ? convertTo8DigitDate(courseEndDate) : null;
-                String formattedCourseStartDate = courseStartDate != null ? convertTo8DigitDate(courseStartDate) : null;
-
-                courseData.put("courseId", course.getCourseId());
-                courseData.put("courseTitle", course.getCourseTitle());
-                courseData.put("courseStartDate", formattedCourseStartDate);
-                courseData.put("courseMidDate", midDate);
-                courseData.put("courseEndDate", formattedCourseEndDate);
-                courseData.put("courseApproval", courseApproval);
-                courseData.put("surveyStatus", surveyStatus);
-                courseData.put("surveyExecutionId", surveyExecution.getSurveyExecutionId());
-
                 courseResponse.add(courseData);
             }
         }

@@ -67,11 +67,12 @@ public class TSR_Controller {
     private static final String UPLOAD_DIR = "SubjectImage/";
     private static final long MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB (바이트 단위)
 
-    // public TSR_Controller(TSR_File_Repository fileRepo, TSR_S_Repository tsr_s_repository,
-    //         TSR_COS_Repository tsr_cos_repository) {
-    //     this.fileRepo = fileRepo;
-    //     this.tsr_s_repository = tsr_s_repository;
-    //     this.tsr_cos_repository = tsr_cos_repository;
+    // public TSR_Controller(TSR_File_Repository fileRepo, TSR_S_Repository
+    // tsr_s_repository,
+    // TSR_COS_Repository tsr_cos_repository) {
+    // this.fileRepo = fileRepo;
+    // this.tsr_s_repository = tsr_s_repository;
+    // this.tsr_cos_repository = tsr_cos_repository;
     // }
 
     // 파일 저장 메서드
@@ -83,16 +84,16 @@ public class TSR_Controller {
             fileExtension = originalFilename.substring(originalFilename.lastIndexOf("."));
         }
 
-        //고유 파일명 생성성
+        // 고유 파일명 생성성
         String uniqueFileName = UUID.randomUUID().toString() + fileExtension;
 
-        //저장 경로로
+        // 저장 경로로
         Path path = Paths.get(ROOT_DIR + UPLOAD_DIR + subjectName + "/" + uniqueFileName);
 
-        //파일이 존재하지 않으면 생성성
+        // 파일이 존재하지 않으면 생성성
         Files.createDirectories(path.getParent());
 
-        //파일저장
+        // 파일저장
         byte[] bytes = file.getBytes();
         Files.write(path, bytes);
 
@@ -135,13 +136,13 @@ public class TSR_Controller {
         String uniqueFileName = (String) result.get("uniqueFileName");
 
         // 파일의 마지막 경로 (파일명 + 확장자 전까지 저장)
-        String filePath = path.toString().substring(0, path.toString().lastIndexOf("\\")+1);
-        // 고유한 파일 번호 생성 
+        String filePath = path.toString().substring(0, path.toString().lastIndexOf("\\") + 1);
+        // 고유한 파일 번호 생성
         String fileNo = UUID.randomUUID().toString();
         FileInfo fileInfo = FileInfo.builder()
                 .fileNo(fileNo)
                 .fileSize(Long.toString(file.getSize()))
-                .filePath(filePath) 
+                .filePath(filePath)
                 .orgFileNm(file.getOriginalFilename())
                 .encFileNm(uniqueFileName)
                 .uploadDt(LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss")))
@@ -177,16 +178,19 @@ public class TSR_Controller {
 
     @GetMapping("/mySubject")
     public ResponseEntity<?> getMySubjects() {
+        // 현재 인증된 사용자 정보 가져오기
         UsernamePasswordAuthenticationToken auth = (UsernamePasswordAuthenticationToken) SecurityContextHolder
                 .getContext().getAuthentication();
         String teacherSessionId = auth.getPrincipal().toString();
 
+        // 강사의 세션 ID로 과목 가져오기
         List<Subject> subjects = tsr_s_repository.findByTeacherSessionId(teacherSessionId);
 
         if (subjects.isEmpty()) {
             return ResponseEntity.ok("신청한 과목이 없습니다.");
         }
 
+        // 결과 필터링 및 응답 생성
         List<Map<String, Object>> responseList = subjects.stream().map(subject -> {
             Map<String, Object> subjectData = new HashMap<>();
             subjectData.put("subjectId", subject.getSubjectId());
@@ -196,8 +200,17 @@ public class TSR_Controller {
             subjectData.put("subjectPromotion", subject.getSubjectPromotion());
             subjectData.put("subjectImageLink", subject.getSubjectImageLink());
 
-            Optional<CourseOwnSubject> courseOwnSubject = tsr_cos_repository.findBySubjectId(subject.getSubjectId());
-            courseOwnSubject.ifPresent(cos -> subjectData.put("subjectApproval", cos.getSubjectApproval()));
+            // 리포지토리 메서드로 조건에 맞는 CourseOwnSubject 검색
+            Optional<CourseOwnSubject> courseOwnSubject = tsr_cos_repository
+                    .findBySubjectIdAndCourseId(
+                            subject.getSubjectId(), "individual-subjects");
+
+            // 결과가 있는 경우 승인 상태 추가
+            if (courseOwnSubject.isPresent()) {
+                subjectData.put("subjectApproval", courseOwnSubject.get().getSubjectApproval());
+            } else {
+                subjectData.put("subjectApproval", "N/A"); // 조건을 만족하는 결과가 없는 경우
+            }
 
             return subjectData;
         }).collect(Collectors.toList());
@@ -205,7 +218,7 @@ public class TSR_Controller {
         return ResponseEntity.ok(responseList);
     }
 
-    // 이미지 반환 
+    // 이미지 반환
     @GetMapping("/images/{fileNo:.+}")
     public ResponseEntity<Resource> getImage(@PathVariable String fileNo) {
         try {

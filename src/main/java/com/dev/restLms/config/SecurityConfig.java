@@ -8,6 +8,8 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.firewall.HttpFirewall;
+import org.springframework.security.web.firewall.StrictHttpFirewall;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -35,7 +37,7 @@ public class SecurityConfig {
                         auth -> auth
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui/index.html",
                                             "/api/login", "/api/security/getcontext", "/Home/RandSubjectVid", 
-                                            "/freeBulletinBoard", "/announcement", "/announcement/mainBanner", "/announcementPost/images/**", "/getAllSubjectInfo", "/subjectInfoDetail/{offeredSubjectsId}", "/teacher/subject/images/{fileNo:.+}", "/teacher/video-management/images/{fileNo:.+}")
+                                            "/freeBulletinBoard", "/announcement", "/announcement/mainBanner", "/announcementPost/images/**", "/getAllSubjectInfo", "/subjectInfoDetail/{offeredSubjectsId}", "/teacher/subject/images/{fileNo:.+}", "/teacher/video-management/images/{fileNo:.+}", "/teacher/video-management/delete-video/{offeredSubjectsId}/{videoId}")
                         .permitAll() // Swagger 관련 경로 허용
                         .anyRequest().authenticated()
                 )
@@ -59,4 +61,11 @@ public class SecurityConfig {
         return source;
     }
 
+    // `//`를 허용하는 HttpFirewall Bean 추가
+    @Bean
+    public HttpFirewall allowUrlWithDoubleSlash() {
+        StrictHttpFirewall firewall = new StrictHttpFirewall();
+        firewall.setAllowUrlEncodedDoubleSlash(true); // `//` 허용
+        return firewall;
+    }
 }

@@ -25,14 +25,17 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.dev.restLms.entity.Course;
 import com.dev.restLms.entity.FileInfo;
 import com.dev.restLms.entity.OfferedSubjects;
 import com.dev.restLms.entity.Subject;
 import com.dev.restLms.entity.SubjectOwnVideo;
 import com.dev.restLms.entity.Video;
+import com.dev.restLms.sechan.teacherVideo.repository.TV_C_Repository;
 import com.dev.restLms.sechan.teacherVideo.repository.TV_File_Repository;
 import com.dev.restLms.sechan.teacherVideo.repository.TV_OS_Repository;
 import com.dev.restLms.sechan.teacherVideo.repository.TV_SOV2_Repository;
+import com.dev.restLms.sechan.teacherVideo.repository.TV_SOV3_Repository;
 import com.dev.restLms.sechan.teacherVideo.repository.TV_SOV_Repository;
 import com.dev.restLms.sechan.teacherVideo.repository.TV_S_Repository;
 import com.dev.restLms.sechan.teacherVideo.repository.TV_V_Repository;
@@ -62,6 +65,12 @@ public class TV_Controller {
 
     @Autowired
     private TV_SOV2_Repository tv_sov2_repository;
+
+    @Autowired
+    private TV_SOV3_Repository tv_sov3_repository;
+
+    @Autowired
+    private TV_C_Repository tv_c_repository;
 
     private static final String ROOT_DIR = "src/main/resources/static/";
     private static final String UPLOAD_DIR = "SubjectVideo/";
@@ -169,7 +178,7 @@ public class TV_Controller {
 
         UsernamePasswordAuthenticationToken auth = (UsernamePasswordAuthenticationToken) SecurityContextHolder
                 .getContext().getAuthentication();
-        // 유저 세션아이디 보안 컨텍스트에서 가져오기
+        // 유저 세션 아이디 보안 컨텍스트에서 가져오기
         String teacherSessionId = auth.getPrincipal().toString();
         // 1. 강사가 개설한 과목 가져오기
         List<OfferedSubjects> offeredSubjects = tv_os_repository.findByTeacherSessionId(teacherSessionId);
@@ -186,9 +195,21 @@ public class TV_Controller {
                 subjectName = subject.get().getSubjectName();
             }
 
+            // 과정명 가져오기
+            String courseTitle = "과정 정보 없음";
+            if ("individual-subjects".equals(os.getCourseId())) {
+                courseTitle = "개별 과목";
+            } else {
+                Optional<Course> course = tv_c_repository.findById(os.getCourseId());
+                if (course.isPresent()) {
+                    courseTitle = course.get().getCourseTitle();
+                }
+            }
+
             // 과목 정보 저장
             subjectInfo.put("offeredSubjectsId", os.getOfferedSubjectsId());
             subjectInfo.put("subjectName", subjectName);
+            subjectInfo.put("courseTitle", courseTitle);
 
             // 과목에 연결된 영상 목록 조회
             List<SubjectOwnVideo> subjectOwnVideos = tv_sov_repository
@@ -429,16 +450,18 @@ public class TV_Controller {
                 }
                 video.setMax(String.valueOf(max));
             }
+            if (videoData.containsKey("videoSortIndex")) {
+                String sortIndex = videoData.get("videoSortIndex").toString();
+                subjectOwnVideo.get().setVideoSortIndex(sortIndex);
+            }
 
             // 파일(이미지)이 업로드되었는지 확인 후 처리
             if (file != null && !file.isEmpty()) {
-                // 파일 저장 메서드 호출
                 String videoTitle = video.getVideoTitle();
                 Map<String, Object> fileSaveResult = saveFile(file, videoTitle);
                 Path path = (Path) fileSaveResult.get("path");
                 String uniqueFileName = (String) fileSaveResult.get("uniqueFileName");
 
-                // 파일의 마지막 경로 (파일명 + 확장자 전까지 저장)
                 String filePath = path.toString().substring(0, path.toString().lastIndexOf("\\") + 1);
                 String fileNo = UUID.randomUUID().toString();
 
@@ -468,4 +491,54 @@ public class TV_Controller {
         }
     }
 
+    @PostMapping("/delete-video/{offeredSubjectsId}/{videoId}")
+    @Operation(summary = "영상 삭제", description = "특정 과목(offeredSubjectsId)에서 특정 영상(videoId)을 삭제")
+    public ResponseEntity<?> deleteVideoFromSubject(
+            @PathVariable String offeredSubjectsId,
+            @PathVariable String videoId) {
+        try {
+            // 인증된 강사의 세션 ID 가져오기
+            UsernamePasswordAuthenticationToken auth = (UsernamePasswordAuthenticationToken) SecurityContextHolder
+                    .getContext().getAuthentication();
+            String teacherSessionId = auth.getPrincipal().toString();
+
+            // 과목이 해당 강사가 소유한 과목인지 확인
+            Optional<OfferedSubjects> offeredSubject = tv_os_repository.findById(offeredSubjectsId);
+            if (offeredSubject.isEmpty() || !offeredSubject.get().getTeacherSessionId().equals(teacherSessionId)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body("접근 권한이 없습니다.");
+            }
+
+            // 영상이 과목에 속해 있는지 확인
+            Optional<SubjectOwnVideo> subjectOwnVideo = tv_sov2_repository
+                    .findBySovOfferedSubjectsIdAndSovVideoId(offeredSubjectsId, videoId);
+            if (subjectOwnVideo.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body("해당 영상이 과목에 속해 있지 않습니다.");
+            }
+
+            // 영상 데이터 삭제
+            tv_sov_repository.delete(subjectOwnVideo.get());
+
+            // 영상이 다른 과목에 연결되어 있지 않으면 Video 엔티티도 삭제
+            List<SubjectOwnVideo> remainingReferences = tv_sov3_repository.findBySovVideoId(videoId);
+            if (remainingReferences.isEmpty()) {
+                Optional<Video> video = tv_v_repository.findById(videoId);
+                if (video.isPresent()) {
+                    // 파일 정보 삭제
+                    Optional<FileInfo> fileInfo = fileRepo.findByFileNo(video.get().getVideoImg());
+                    if (fileInfo.isPresent()) {
+                        Path filePath = Paths.get(fileInfo.get().getFilePath() + fileInfo.get().getEncFileNm());
+                        Files.deleteIfExists(filePath); // 파일 삭제
+                        fileRepo.delete(fileInfo.get()); // FileInfo 삭제
+                    }
+
+                    // Video 엔티티 삭제
+                    tv_v_repository.delete(video.get());
+                }
+            }
+
+            return ResponseEntity.ok("영상이 성공적으로 삭제되었습니다.");
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("오류 발생: " + e.getMessage());
+        }
+    }
 }
