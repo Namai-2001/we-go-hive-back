@@ -37,7 +37,7 @@ public class SecurityConfig {
                         auth -> auth
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui/index.html",
                                             "/api/login", "/api/security/getcontext", "/Home/RandSubjectVid", 
-                                            "/freeBulletinBoard", "/announcement", "/announcement/mainBanner", "/announcementPost/images/**", "/getAllSubjectInfo", "/subjectInfoDetail/{offeredSubjectsId}", "/teacher/subject/images/{fileNo:.+}", "/teacher/video-management/images/{fileNo:.+}", "/teacher/video-management/delete-video/{offeredSubjectsId}/{videoId}")
+                                            "/freeBulletinBoard", "/announcement", "/announcement/mainBanner", "/announcementPost/images/**", "/getAllSubjectInfo", "/subjectInfoDetail/{offeredSubjectsId}", "/teacher/subject/images/{fileNo:.+}", "/teacher/video-management/images/{fileNo:.+}", "/teacher/video-management/delete-video/{offeredSubjectsId}/{videoId}", "/Videoplayer/videoList/{episodeId}/{offeredSubjectsId}")
                         .permitAll() // Swagger 관련 경로 허용
                         .anyRequest().authenticated()
                 )

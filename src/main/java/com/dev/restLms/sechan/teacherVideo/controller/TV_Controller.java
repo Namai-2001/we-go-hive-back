@@ -30,6 +30,7 @@ import com.dev.restLms.entity.FileInfo;
 import com.dev.restLms.entity.OfferedSubjects;
 import com.dev.restLms.entity.Subject;
 import com.dev.restLms.entity.SubjectOwnVideo;
+import com.dev.restLms.entity.UserOwnSubjectVideo;
 import com.dev.restLms.entity.Video;
 import com.dev.restLms.sechan.teacherVideo.repository.TV_C_Repository;
 import com.dev.restLms.sechan.teacherVideo.repository.TV_File_Repository;
@@ -38,6 +39,7 @@ import com.dev.restLms.sechan.teacherVideo.repository.TV_SOV2_Repository;
 import com.dev.restLms.sechan.teacherVideo.repository.TV_SOV3_Repository;
 import com.dev.restLms.sechan.teacherVideo.repository.TV_SOV_Repository;
 import com.dev.restLms.sechan.teacherVideo.repository.TV_S_Repository;
+import com.dev.restLms.sechan.teacherVideo.repository.TV_UOSV_Repository;
 import com.dev.restLms.sechan.teacherVideo.repository.TV_V_Repository;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -71,6 +73,9 @@ public class TV_Controller {
 
     @Autowired
     private TV_C_Repository tv_c_repository;
+
+    @Autowired
+    private TV_UOSV_Repository tv_uosv_repository;
 
     private static final String ROOT_DIR = "src/main/resources/static/";
     private static final String UPLOAD_DIR = "SubjectVideo/";
@@ -257,7 +262,6 @@ public class TV_Controller {
             @RequestPart("videoData") Map<String, Object> videoData,
             @RequestPart("file") MultipartFile file) {
         try {
-
             if (file.getSize() > MAX_FILE_SIZE) {
                 return ResponseEntity.badRequest().body("파일 크기가 제한을 초과했습니다.");
             }
@@ -265,30 +269,23 @@ public class TV_Controller {
             UsernamePasswordAuthenticationToken auth = (UsernamePasswordAuthenticationToken) SecurityContextHolder
                     .getContext().getAuthentication();
             String teacherSessionId = auth.getPrincipal().toString();
+
             // 요청 데이터 추출
             String videoLink = (String) videoData.get("videoLink");
             String videoTitle = (String) videoData.get("videoTitle");
             String videoSortIndex = (String) videoData.get("videoSortIndex");
 
-            // 유튜브 ID 추출
+            // 유튜브 ID 추출 및 영상 길이 가져오기
             String youtubeId = extractYoutubeId(videoLink);
-
-            // 유튜브 영상 길이 가져오기
             int max = getYoutubeVideoDuration(youtubeId);
+            if (max > 3)
+                max -= 3;
 
-            // 3초를 빼기
-            if (max > 3) {
-                max -= 3; // 영상 길이가 3초 이상일 때만 빼기
-            }
-
-            // 파일 저장 메서드 호출
+            // 파일 저장
             Map<String, Object> fileSaveResult = saveFile(file, videoTitle);
             Path path = (Path) fileSaveResult.get("path");
             String uniqueFileName = (String) fileSaveResult.get("uniqueFileName");
-
-            // 파일의 마지막 경로 (파일명 + 확장자 전까지 저장)
             String filePath = path.toString().substring(0, path.toString().lastIndexOf("\\") + 1);
-            // 고유한 파일 번호 생성
             String fileNo = UUID.randomUUID().toString();
             FileInfo fileInfo = FileInfo.builder()
                     .fileNo(fileNo)
@@ -305,19 +302,31 @@ public class TV_Controller {
             // 1. Video 엔티티 저장
             Video video = new Video();
             video.setVideoTitle(videoTitle);
-            video.setVideoLink(youtubeId); // 유튜브 ID만 저장
-            video.setMax(String.valueOf(max)); // String으로 저장
+            video.setVideoLink(youtubeId);
+            video.setMax(String.valueOf(max));
             video.setVideoImg(fileNo);
             tv_v_repository.save(video);
 
             // 2. SubjectOwnVideo 엔티티 저장
             SubjectOwnVideo subjectOwnVideo = new SubjectOwnVideo();
-            subjectOwnVideo.setSovOfferedSubjectsId(offeredSubjectsId); // 과목 ID
-            subjectOwnVideo.setSovVideoId(video.getVideoId()); // Video ID
-            subjectOwnVideo.setVideoSortIndex(videoSortIndex); // 정렬 순서
+            subjectOwnVideo.setSovOfferedSubjectsId(offeredSubjectsId);
+            subjectOwnVideo.setSovVideoId(video.getVideoId());
+            subjectOwnVideo.setVideoSortIndex(videoSortIndex);
             tv_sov_repository.save(subjectOwnVideo);
 
-            // 응답 반환
+            // 3. UserOwnSubjectVideo 업데이트
+            List<UserOwnSubjectVideo> userVideos = tv_uosv_repository.findByUosvOfferedSubjectsId(offeredSubjectsId);
+
+            for (UserOwnSubjectVideo userVideo : userVideos) {
+                UserOwnSubjectVideo newUserVideo = new UserOwnSubjectVideo();
+                newUserVideo.setUosvSessionId(userVideo.getUosvSessionId());
+                newUserVideo.setUosvEpisodeId(subjectOwnVideo.getEpisodeId());
+                newUserVideo.setUosvOfferedSubjectsId(offeredSubjectsId);
+                newUserVideo.setProgress("0");
+                newUserVideo.setUosvFinal("0");
+                tv_uosv_repository.save(newUserVideo);
+            }
+
             return ResponseEntity.ok("영상과 과목 연결 정보가 성공적으로 저장되었습니다.");
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("영상 저장 중 오류 발생: " + e.getMessage());

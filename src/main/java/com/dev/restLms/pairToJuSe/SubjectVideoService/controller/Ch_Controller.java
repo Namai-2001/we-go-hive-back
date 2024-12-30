@@ -112,7 +112,7 @@ public class Ch_Controller {
         // calsList.add(current);
         // }
         UsernamePasswordAuthenticationToken auth = (UsernamePasswordAuthenticationToken) SecurityContextHolder
-        .getContext().getAuthentication();
+                .getContext().getAuthentication();
 
         final String userSessionId = auth.getPrincipal().toString();
         for (Ch_SOV_Projection ch_SOV_Projection : resultList) {
@@ -139,7 +139,7 @@ public class Ch_Controller {
                 .findBySovOfferedSubjectsIdContaining(sovOfferedSubjectsId, pageable);
 
         UsernamePasswordAuthenticationToken auth = (UsernamePasswordAuthenticationToken) SecurityContextHolder
-        .getContext().getAuthentication();
+                .getContext().getAuthentication();
 
         final String userSessionId = auth.getPrincipal().toString();
         List<Map<String, String>> pageInfoList = new ArrayList<>();
@@ -149,20 +149,18 @@ public class Ch_Controller {
                     .findByUosvSessionIdAndUosvOfferedSubjectsIdAndUosvEpisodeId(userSessionId, sovOfferedSubjectsId,
                             sovProjection.getEpisodeId());
 
-            // double max = Double.parseDouble(vProjection.getMax());
-            // double finalstat = Double.parseDouble(uosvProjection.getProgress());
-
-            // int progressPercentage = (int) Math.ceil(finalstat / max * 100);
-            // String progressString = Integer.toString(progressPercentage);
-
             Map<String, String> infoDetails = new HashMap<>();
             infoDetails.put("episodeId", sovProjection.getEpisodeId());
             infoDetails.put("title", sovProjection.getVideoSortIndex() + "회차");
-            // infoDetails.put("sovVideoId", sovProjection.getSovVideoId());
-            // infoDetails.put("videoLink", vProjection.getVideoLink());
             infoDetails.put("image", vProjection.getVideoImg());
             infoDetails.put("description", vProjection.getVideoTitle());
-            infoDetails.put("progress", uosvProjection.getProgress());
+
+            // Null 체크 추가
+            if (uosvProjection != null) {
+                infoDetails.put("progress", uosvProjection.getProgress());
+            } else {
+                infoDetails.put("progress", "0"); // 기본값 설정
+            }
 
             pageInfoList.add(infoDetails);
         }
