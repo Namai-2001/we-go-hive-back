@@ -35,6 +35,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -100,13 +102,17 @@ public class VideoPlayerController {
   @Operation(summary = "강의 플레이어에 들어갈 특정 사용자의  강의 목록")
   @GetMapping("/videoList")
   public List<Map<String, Object>> getSubjectsVideosList(
-      @Parameter(description = "사용자 고유 ID", required = true) @RequestParam String sessionId,
       @Parameter(description = "회차 번호", required = true) @RequestParam String episodeId,
       @Parameter(description = "개설 과목 코드", required = true) @RequestParam String offeredSubjectsId) {
+
+    UsernamePasswordAuthenticationToken auth = (UsernamePasswordAuthenticationToken) SecurityContextHolder
+                .getContext().getAuthentication();
+    final String userSessionId = auth.getPrincipal().toString();
+    
     List<Map<String, Object>> resultList = new ArrayList<>();
     // Optional 처리
     Optional<UserOwnSubjectVideo> userOwnSubjectVideo = videoPlayerUserOwnSubjectVideoRepository
-        .findByUosvSessionIdAndUosvEpisodeIdAndUosvOfferedSubjectsId(sessionId, episodeId, offeredSubjectsId);
+        .findByUosvSessionIdAndUosvEpisodeIdAndUosvOfferedSubjectsId(userSessionId, episodeId, offeredSubjectsId);
 
     List<VideoPlayerSubjectOwnVideo> videoList = videoPlayerSubjectOwnVideoRepository
         .findBySovOfferedSubjectsId(userOwnSubjectVideo.get().getUosvOfferedSubjectsId());
@@ -127,33 +133,39 @@ public class VideoPlayerController {
   @Operation(summary = "강의 플레이어에 들어갈 북마크 목록")
   @GetMapping("/bookmarkList")
   public List<VideoPlayerBookMark> getBookMarkList(
-      @Parameter(description = "사용자 고유 ID", required = true) @RequestParam String sessionId,
       @Parameter(description = "회차 번호", required = true) @RequestParam String episodeId,
       @Parameter(description = "개설 과목 코드", required = true) @RequestParam String offeredSubjectsId) {
-    return videoPlayerBookMarkRepository.findAllByBmSessionIdAndBmEpisodeIdAndBmOfferedSubjectsId(sessionId, episodeId,
+
+    UsernamePasswordAuthenticationToken auth = (UsernamePasswordAuthenticationToken) SecurityContextHolder
+      .getContext().getAuthentication();
+    final String userSessionId = auth.getPrincipal().toString();
+
+    return videoPlayerBookMarkRepository.findAllByBmSessionIdAndBmEpisodeIdAndBmOfferedSubjectsId(userSessionId, episodeId,
         offeredSubjectsId);
   }
 
   @Operation(summary = "특정 시점의 북마크 추가")
   @PostMapping("/addBookmark")
   public ResponseEntity<?> addBookmark(
-      @Parameter(description = "사용자 고유 ID", required = true) @RequestParam String sessionId,
       @Parameter(description = "회차 번호", required = true) @RequestParam String episodeId,
       @Parameter(description = "개설 과목 코드", required = true) @RequestParam String offeredSubjectsId,
       @RequestBody BookMarkDTO bookmarkDTO) {
     try {
+      UsernamePasswordAuthenticationToken auth = (UsernamePasswordAuthenticationToken) SecurityContextHolder
+        .getContext().getAuthentication();
+      final String userSessionId = auth.getPrincipal().toString();
       // 저장하려고 하는 북마크 시간이 제대로 들어오지 않으면, 반환
       if (bookmarkDTO.getBookmarkTime() != null) {
         BookMark bookMark = BookMark.builder()
             .bmEpisodeId(String.valueOf(episodeId))
-            .bmSessionId(sessionId)
+            .bmSessionId(userSessionId)
             .bmOfferedSubjectsId(offeredSubjectsId)
             .bookmarkTime(String.valueOf(bookmarkDTO.getBookmarkTime()))
             .bookmarkContent(bookmarkDTO.getBookmarkContent())
             .build();
         videoPlayerBookMarkRepository.save(bookMark);
         return ResponseEntity.ok(videoPlayerBookMarkRepository
-            .findAllByBmSessionIdAndBmEpisodeIdAndBmOfferedSubjectsId(sessionId, episodeId, offeredSubjectsId));
+            .findAllByBmSessionIdAndBmEpisodeIdAndBmOfferedSubjectsId(userSessionId, episodeId, offeredSubjectsId));
       }
       Map<String, String> errorResponse = new HashMap<>();
       errorResponse.put("message", "잘못된 정보가 입력되었습니다.(특수문자 < > \\ / 등)");
@@ -174,19 +186,22 @@ public class VideoPlayerController {
   @PostMapping("/deleteBookmark")
   public ResponseEntity<?> deleteBookmark(
       @Parameter(description = "테이블 고유값", required = true) @RequestParam String increaseId,
-      @Parameter(description = "사용자 SessionId", required = true) @RequestParam String sessionId,
       @Parameter(description = "특정 과목의 영상 회차 번호", required = true) @RequestParam String episodeId,
       @Parameter(description = "특정 개설 과목 번호", required = true) @RequestParam String offeredSubjectsId,
       @Parameter(description = "해당 북마크의 시점", required = true) @RequestParam String bookmarkTime) {
     // 특정 과목에 다른 회차에 동일한 시점의 북마크가 존재할 수 있기 떄문에 삭제시에는 increaseId를 포함한 검색을 통해
     // 삭제(Unique한 값임)
+    UsernamePasswordAuthenticationToken auth = (UsernamePasswordAuthenticationToken) SecurityContextHolder
+      .getContext().getAuthentication();
+    final String userSessionId = auth.getPrincipal().toString();    
+
     Optional<BookMark> videoPlayerBookMark = videoPlayerBookMarkRepository
-        .findByIncreaseIdAndBmSessionIdAndBmEpisodeIdAndBmOfferedSubjectsIdAndBookmarkTime(increaseId, sessionId,
+        .findByIncreaseIdAndBmSessionIdAndBmEpisodeIdAndBmOfferedSubjectsIdAndBookmarkTime(increaseId, userSessionId,
             episodeId, offeredSubjectsId, bookmarkTime);
     if (videoPlayerBookMark.isPresent()) {
       videoPlayerBookMarkRepository.delete(videoPlayerBookMark.get());
       return ResponseEntity.ok(videoPlayerBookMarkRepository
-          .findAllByBmSessionIdAndBmEpisodeIdAndBmOfferedSubjectsId(sessionId, episodeId, offeredSubjectsId));
+          .findAllByBmSessionIdAndBmEpisodeIdAndBmOfferedSubjectsId(userSessionId, episodeId, offeredSubjectsId));
     }
     Map<String, String> errorResponse = new HashMap<>();
     errorResponse.put("message", "Bookmark not found");
@@ -196,12 +211,16 @@ public class VideoPlayerController {
   @Operation(summary = "처음 비디오 플레이어 실행시에 실행될 강의 데이터")
   @GetMapping("/runningVideo")
   public ResponseEntity<?> playVideo(
-      @Parameter(description = "사용자 고유 ID", required = true) @RequestParam String sessionId, // 45
       @Parameter(description = "회차 번호", required = true) @RequestParam String episodeId, // 14
       @Parameter(description = "개설 과목 코드", required = true) @RequestParam String offeredSubjectsId) { // o1a
+
+    UsernamePasswordAuthenticationToken auth = (UsernamePasswordAuthenticationToken) SecurityContextHolder
+      .getContext().getAuthentication();
+    final String userSessionId = auth.getPrincipal().toString();   
+
     Map<String, Object> resultMap = new HashMap<>();
     Optional<UserOwnSubjectVideo> userOwnSubjectVideo = videoPlayerUserOwnSubjectVideoRepository
-        .findByUosvSessionIdAndUosvEpisodeIdAndUosvOfferedSubjectsId(sessionId, episodeId, offeredSubjectsId);
+        .findByUosvSessionIdAndUosvEpisodeIdAndUosvOfferedSubjectsId(userSessionId, episodeId, offeredSubjectsId);
     List<VideoPlayerSubjectOwnVideo> videoPlayerSubjectOwnVideoTotal = videoPlayerSubjectOwnVideoRepository
         .findBySovOfferedSubjectsId(offeredSubjectsId);
     Optional<VideoPlayerSubjectOwnVideo> videoPlayerSubjectOwnVideo;
@@ -264,17 +283,12 @@ public class VideoPlayerController {
       else {
         Optional<VideoPlayerSubjectOwnVideo> videoPlayerSubjectOwnVideoCurrent = videoPlayerSubjectOwnVideoRepository
             .findBySovOfferedSubjectsIdAndEpisodeId(offeredSubjectsId, episodeId);
-        Integer inputSortIndex = Integer.parseInt(videoPlayerSubjectOwnVideoCurrent.get().getVideoSortIndex()); // 수강을
-                                                                                                                // 원하는
-                                                                                                                // 과목에
-                                                                                                                // 대한
-                                                                                                                // SortIndex
-                                                                                                                // 3일거야
+        Integer inputSortIndex = Integer.parseInt(videoPlayerSubjectOwnVideoCurrent.get().getVideoSortIndex());
         for (VideoPlayerSubjectOwnVideo subjectOwnVideo : videoPlayerSubjectOwnVideoTotal) {
           // 전 과목과 비교
           if (Integer.parseInt(subjectOwnVideo.getVideoSortIndex()) == inputSortIndex - 1) {
             Optional<UserOwnSubjectVideo> prev = videoPlayerUserOwnSubjectVideoRepository
-                .findByUosvSessionIdAndUosvEpisodeIdAndUosvOfferedSubjectsId(sessionId, subjectOwnVideo.getEpisodeId(),
+                .findByUosvSessionIdAndUosvEpisodeIdAndUosvOfferedSubjectsId(userSessionId, subjectOwnVideo.getEpisodeId(),
                     offeredSubjectsId);
             // 전 차시에 대한 레코드가 존재하고
             if (prev.isPresent() && Integer.parseInt(prev.get().getProgress()) >= 100) {
@@ -314,12 +328,16 @@ public class VideoPlayerController {
   @Operation(summary = "비디오 플레이어 FINAL 수정 & progress 업데이트")
   @PostMapping("/UpdateFinal")
   public Integer updateFinal(
-      @Parameter(description = "사용자 고유 ID", required = true) @RequestParam String sessionId,
       @Parameter(description = "회차 번호", required = true) @RequestParam String episodeId,
       @Parameter(description = "개설 과목 코드", required = true) @RequestParam String offeredSubjectsId,
       @RequestBody VideoPlayerRunningTimeDTO runningTimeDTO) {
+
+    UsernamePasswordAuthenticationToken auth = (UsernamePasswordAuthenticationToken) SecurityContextHolder
+      .getContext().getAuthentication();
+    final String userSessionId = auth.getPrincipal().toString();  
+
     Optional<UserOwnSubjectVideo> userOwnSubjectVideo = videoPlayerUserOwnSubjectVideoRepository
-        .findByUosvSessionIdAndUosvEpisodeIdAndUosvOfferedSubjectsId(sessionId, episodeId, offeredSubjectsId);
+        .findByUosvSessionIdAndUosvEpisodeIdAndUosvOfferedSubjectsId(userSessionId, episodeId, offeredSubjectsId);
     Optional<VideoPlayerSubjectOwnVideo> videoPlayerSubjectOwnVideo = videoPlayerSubjectOwnVideoRepository
         .findBySovOfferedSubjectsIdAndEpisodeId(userOwnSubjectVideo.get().getUosvOfferedSubjectsId(),
             userOwnSubjectVideo.get().getUosvEpisodeId());

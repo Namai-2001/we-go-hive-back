@@ -10,8 +10,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -53,11 +56,15 @@ public class QuestionBoardController {
     @GetMapping()
     @Operation(summary = "해당 질문 게시판의 게시글 제목, 사용자, 작성날짜", description = "해당 질문 게시판에 대한 게시글 목록을 반환합니다")
     public ResponseEntity<?> getAllSubjectQuestion(
-        @RequestParam String sessionId,
         @RequestParam String offeredSubjectsId,
         @RequestParam(defaultValue = "0") int page,
         @RequestParam(defaultValue = "10") int size
     ) {
+
+        UsernamePasswordAuthenticationToken auth = (UsernamePasswordAuthenticationToken) SecurityContextHolder
+                                .getContext().getAuthentication();
+                // 유저 세션아이디 보안 컨텍스트에서 가져오기
+                String sessionId = auth.getPrincipal().toString();
 
         // 권한 확인
         Optional<QuestionBoardUserOwnPermissionGroup> userOwnPermissionGroup = questionBoardUserOwnPermissionGroupRepository.findBySessionId(sessionId);
@@ -75,16 +82,16 @@ public class QuestionBoardController {
             String permissionGroupName = permissionGroup.get().getPermissionName();
 
             switch (permissionGroupName) {
-                case "SITE_OFFICER", "OFFICER":
-                    List<Map<String, String>> resultList1 = saveboardPost(sessionId, offeredSubjectsId, page, size);
-                    return ResponseEntity.ok().body(resultList1);
+                case "SITE_OFFICER":
+                    Map<String, Object> response1 = saveboardPost(sessionId, offeredSubjectsId, page, size);
+                    return ResponseEntity.ok().body(response1);
 
-                case "COURSE_OFFICER":
+                case "INDIV_OFFICER", "OFFICER":
                     // 해당 과정의 책임자인지 확인
                     Optional<QuestionBoardOfferedSubjects> courseOfficerCheck = questionBoardOfferedSubjectsRepository.findByOfferedSubjectsIdAndOfficerSessionId(offeredSubjectsId, sessionId);
                     if(courseOfficerCheck.isPresent()){
-                        List<Map<String, String>> resultList2 = saveboardPost(sessionId, offeredSubjectsId, page, size);
-                        return ResponseEntity.ok().body(resultList2);
+                        Map<String, Object> response2 = saveboardPost(sessionId, offeredSubjectsId, page, size);
+                        return ResponseEntity.ok().body(response2);
                     }else{
                         return ResponseEntity.status(HttpStatus.CONFLICT).body("해당 과정의 책임자가 아닙니다");
                     }
@@ -92,8 +99,8 @@ public class QuestionBoardController {
                     // 해당 과목의 강사인지 확인
                     Optional<QuestionBoardOfferedSubjects> teacherSessionIdCheck = questionBoardOfferedSubjectsRepository.findByOfferedSubjectsIdAndTeacherSessionId(offeredSubjectsId, sessionId);
                     if(teacherSessionIdCheck.isPresent()){
-                        List<Map<String, String>> resultList3 = saveboardPost(sessionId, offeredSubjectsId, page, size);
-                        return ResponseEntity.ok().body(resultList3);
+                        Map<String, Object> response3 = saveboardPost(sessionId, offeredSubjectsId, page, size);
+                        return ResponseEntity.ok().body(response3);
                     }else{
                         return ResponseEntity.status(HttpStatus.CONFLICT).body("해당 과정의 강사가 아닙니다");
                     }
@@ -101,8 +108,8 @@ public class QuestionBoardController {
                     // 해당 과목의 수강생인지 확인
                     Optional<QuestionBoardUserOwnAssignment> userSessionCheck = questionBoardUserOwnAssignmentRepository.findByOfferedSubjectsIdAndUserSessionId(offeredSubjectsId, sessionId);
                     if(userSessionCheck.isPresent()){
-                        List<Map<String, String>> resultList4 = saveboardPost(sessionId, offeredSubjectsId, page, size);
-                        return ResponseEntity.ok().body(resultList4);
+                        Map<String, Object> response4 = saveboardPost(sessionId, offeredSubjectsId, page, size);
+                        return ResponseEntity.ok().body(response4);
                     }else{
                         return ResponseEntity.status(HttpStatus.CONFLICT).body("해당 과정의 수강생이 아닙니다");
                     }
@@ -115,15 +122,16 @@ public class QuestionBoardController {
             return ResponseEntity.status(HttpStatus.CONFLICT).body("해당 과목의 게시판이 없습니다.");
     }
 
-    private List<Map<String, String>> saveboardPost(String sessionId, String offeredSubjectsId, int page, int size) {
+    private Map<String, Object> saveboardPost(String sessionId, String offeredSubjectsId, int page, int size) {
 
         // 개설과목의 게시판아이디 확인하기 위함
         Optional<QuestionBoard> questionBoard = questionBoardRepository.findByOfferedSubjectsId(offeredSubjectsId);
 
-        List<Map<String, String>> resultList = new ArrayList<>();
+        List<Map<String, Object>> resultList = new ArrayList<>();
     
         // 페이징 처리된 게시글 가져오기
-        Pageable pageable = PageRequest.of(page, size);
+        Sort sort = Sort.by(Sort.Direction.DESC, "isNotice").and(Sort.by(Sort.Direction.DESC, "createdDate"));
+        Pageable pageable = PageRequest.of(page, size, sort);
         Page<QuestionBoardPost> questionBoardPosts =
             questionBoardPostRepository.findByBoardId(questionBoard.get().getBoardId(), pageable);
     
@@ -140,7 +148,7 @@ public class QuestionBoardController {
             questionBoardSubjectRepository.findBySubjectId(courseSubject.get().getSubjectId());
     
         for (QuestionBoardPost post : questionBoardPosts) {
-            Map<String, String> postMap = new HashMap<>();
+            Map<String, Object> postMap = new HashMap<>();
             postMap.put("sessionId", post.getSessionId());
             postMap.put("postId", post.getPostId());
             postMap.put("title", post.getTitle());
@@ -154,7 +162,14 @@ public class QuestionBoardController {
             resultList.add(postMap);
         }
     
-        return resultList;
+        Map<String, Object> response = new HashMap<>();
+        response.put("posts", resultList);
+        response.put("currentPage", questionBoardPosts.getNumber());
+        response.put("totalItems", questionBoardPosts.getTotalElements());
+        response.put("totalPages", questionBoardPosts.getTotalPages());
+
+        return response;
+
     }
     
 }

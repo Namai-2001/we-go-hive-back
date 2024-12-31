@@ -31,7 +31,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 
 @RestController
 @Tag(name = "받은 쪽지함 API", description = "받은 쪽지함 관련 기능을 모아둔 컨트롤러")
-@RequestMapping("/message")
+@RequestMapping("/messages")
 public class Ch_Rs_Controller {
         @Autowired
         Ch_M_Rs_Repository ch_M_Rs_Repository;

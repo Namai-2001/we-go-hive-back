@@ -1,19 +1,32 @@
 package com.dev.restLms.pairToJuSe.SubjectVideoService.controller;
 
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.UrlResource;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.dev.restLms.entity.FileInfo;
 import com.dev.restLms.pairToJuSe.SubjectVideoService.projection.Ch_OS_S_Projection;
 import com.dev.restLms.pairToJuSe.SubjectVideoService.projection.Ch_SOV_Projection;
 import com.dev.restLms.pairToJuSe.SubjectVideoService.projection.Ch_S_Projection;
@@ -26,6 +39,7 @@ import com.dev.restLms.pairToJuSe.SubjectVideoService.repository.Ch_S_Repository
 import com.dev.restLms.pairToJuSe.SubjectVideoService.repository.Ch_UOSV_Repository;
 import com.dev.restLms.pairToJuSe.SubjectVideoService.repository.Ch_U_Repository;
 import com.dev.restLms.pairToJuSe.SubjectVideoService.repository.Ch_V_Repository;
+import com.dev.restLms.pairToJuSe.SubjectVideoService.repository.File_Repository;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -81,7 +95,6 @@ public class Ch_Controller {
     @Operation(summary = "영상 목록 별 진행도 계산", description = "영상 목록 별 진행도를 계산해준다")
     public List<String> getListInfoCalculateProgress(
             @Parameter(description = "개설 과목 코드", required = true) String sovOfferedSubjectsId,
-            @Parameter(description = "사용자 세션 아이디", required = true) String sessionId,
             int page,
             int size) {
         Pageable pageable = PageRequest.of(page, size);
@@ -110,11 +123,14 @@ public class Ch_Controller {
 
         // calsList.add(current);
         // }
+        UsernamePasswordAuthenticationToken auth = (UsernamePasswordAuthenticationToken) SecurityContextHolder
+                .getContext().getAuthentication();
 
+        final String userSessionId = auth.getPrincipal().toString();
         for (Ch_SOV_Projection ch_SOV_Projection : resultList) {
             String episodeId = ch_SOV_Projection.getEpisodeId();
             Ch_UOSV_Projection ch_UOSV_Projection = ch_UOSV_Repository
-                    .findByUosvSessionIdAndUosvOfferedSubjectsIdAndUosvEpisodeId(sessionId, sovOfferedSubjectsId,
+                    .findByUosvSessionIdAndUosvOfferedSubjectsIdAndUosvEpisodeId(userSessionId, sovOfferedSubjectsId,
                             episodeId);
 
             String result = ch_UOSV_Projection.getProgress();
@@ -127,35 +143,39 @@ public class Ch_Controller {
     @Operation(summary = "통합 영상 정보 조회", description = "개설 과목 코드와 사용자 세션 아이디를 통해 영상 정보와 진행도를 통합하여 조회합니다.")
     public List<Map<String, String>> getSubjectVideoInfo(
             @Parameter(description = "개설 과목 코드", required = true) @RequestParam String sovOfferedSubjectsId,
-            @Parameter(description = "사용자 세션 아이디", required = true) @RequestParam String sessionId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
 
-        Pageable pageable = PageRequest.of(page, size);
+        // 정렬 조건 추가
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.ASC, "videoSortIndex"));
+
+        // 쿼리 결과 조회
         Page<Ch_SOV_Projection> sovResults = ch_SOV_Repository
                 .findBySovOfferedSubjectsIdContaining(sovOfferedSubjectsId, pageable);
 
+        UsernamePasswordAuthenticationToken auth = (UsernamePasswordAuthenticationToken) SecurityContextHolder
+                .getContext().getAuthentication();
+
+        final String userSessionId = auth.getPrincipal().toString();
         List<Map<String, String>> pageInfoList = new ArrayList<>();
         for (Ch_SOV_Projection sovProjection : sovResults) {
             Ch_V_Projection vProjection = ch_V_Repository.findByVideoId(sovProjection.getSovVideoId());
             Ch_UOSV_Projection uosvProjection = ch_UOSV_Repository
-                    .findByUosvSessionIdAndUosvOfferedSubjectsIdAndUosvEpisodeId(sessionId, sovOfferedSubjectsId,
+                    .findByUosvSessionIdAndUosvOfferedSubjectsIdAndUosvEpisodeId(userSessionId, sovOfferedSubjectsId,
                             sovProjection.getEpisodeId());
-
-            // double max = Double.parseDouble(vProjection.getMax());
-            // double finalstat = Double.parseDouble(uosvProjection.getProgress());
-
-            // int progressPercentage = (int) Math.ceil(finalstat / max * 100);
-            // String progressString = Integer.toString(progressPercentage);
 
             Map<String, String> infoDetails = new HashMap<>();
             infoDetails.put("episodeId", sovProjection.getEpisodeId());
             infoDetails.put("title", sovProjection.getVideoSortIndex() + "회차");
-            // infoDetails.put("sovVideoId", sovProjection.getSovVideoId());
-            // infoDetails.put("videoLink", vProjection.getVideoLink());
             infoDetails.put("image", vProjection.getVideoImg());
             infoDetails.put("description", vProjection.getVideoTitle());
-            infoDetails.put("progress", uosvProjection.getProgress());
+
+            // Null 체크 추가
+            if (uosvProjection != null) {
+                infoDetails.put("progress", uosvProjection.getProgress());
+            } else {
+                infoDetails.put("progress", "0"); // 기본값 설정
+            }
 
             pageInfoList.add(infoDetails);
         }
@@ -170,6 +190,9 @@ public class Ch_Controller {
 
     @Autowired
     Ch_U_Repository ch_U_Repository;
+
+    @Autowired
+    File_Repository fileRepo;
 
     @GetMapping("/getSubjectInfo")
     @Operation(summary = "과목 정보 조회", description = "과목명, 강사명 조회")
@@ -194,5 +217,30 @@ public class Ch_Controller {
         result.put("title", subjectName);
         result.put("teacherName", teacherName);
         return result;
+    }
+
+    // 이미지 반환
+    @GetMapping("/images/{fileNo:.+}")
+    public ResponseEntity<Resource> getImage(@PathVariable String fileNo) {
+        try {
+            Optional<FileInfo> fileInfoOptional = fileRepo.findByFileNo(fileNo);
+            if (!fileInfoOptional.isPresent()) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
+            }
+
+            FileInfo fileInfo = fileInfoOptional.get();
+            Path filePath = Paths.get(fileInfo.getFilePath() + fileInfo.getEncFileNm());
+            Resource resource = new UrlResource(filePath.toUri());
+
+            if (resource.exists() || resource.isReadable()) {
+                return ResponseEntity.ok()
+                        .contentType(MediaType.IMAGE_JPEG) // 이미지 형식에 맞게 설정
+                        .body(resource);
+            } else {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
+            }
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+        }
     }
 }

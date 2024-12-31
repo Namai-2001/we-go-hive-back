@@ -9,4 +9,5 @@ import com.dev.restLms.entity.OfferedSubjects;
 public interface OS_Repository extends JpaRepository<OfferedSubjects, String> {
     // 개설 과목 ID로 과목 ID 조회
     Optional<OfferedSubjects> findByOfferedSubjectsId(String offeredSubjectsId);
+    
 }

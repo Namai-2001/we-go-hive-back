@@ -1,19 +1,8 @@
 package com.dev.restLms.ProcessPursuit;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+public interface ProcessPursuitUserOwnCourse {
 
-@Builder
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
-public class ProcessPursuitUserOwnCourse {
+     String getSessionId();
 
-    private String sessionId;
-
-    private String courseId;
+     String getCourseId();
 }

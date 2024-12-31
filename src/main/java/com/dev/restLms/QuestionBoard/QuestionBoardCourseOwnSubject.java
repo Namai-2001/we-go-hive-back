@@ -1,20 +1,9 @@
 package com.dev.restLms.QuestionBoard;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+public interface QuestionBoardCourseOwnSubject {
 
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
-public class QuestionBoardCourseOwnSubject {
-
-    private int increaseId;
+     String getIncreaseId();
     
-    private String subjectId;
+     String getSubjectId();
     
 }

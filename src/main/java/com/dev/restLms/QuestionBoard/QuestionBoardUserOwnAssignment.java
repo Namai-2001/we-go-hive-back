@@ -1,22 +1,11 @@
 package com.dev.restLms.QuestionBoard;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+public interface QuestionBoardUserOwnAssignment {
 
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
-public class QuestionBoardUserOwnAssignment {
-
-    private int increaseId;
+     String getIncreaseId();
     
-    private String offeredSubjectsId;
+     String getOfferedSubjectsId();
 
-    private String userSessionId;
+     String getUserSessionId();
     
 }

@@ -1,22 +1,11 @@
 package com.dev.restLms.QuestionBoard;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+public interface QuestionBoard {
+     String getBoardId();
 
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
-public class QuestionBoard {
-    private String boardId;
+     String getBoardCategory();
 
-    private String boardCategory;
+     String getTeacherSessionId();
 
-    private String teacherSessionId;
-
-    private String offeredSubjectsId;
+     String getOfferedSubjectsId();
 }

@@ -1,29 +1,18 @@
 package com.dev.restLms.ProcessList;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
-
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
-public class ProcessListCourse {
-	private String courseId; 
+public interface ProcessListCourse {
+	 String getCourseId(); 
 	
-	private String sessionId;
+	 String getSessionId();
 
-	private String courseTitle;
+	 String getCourseTitle();
 	
-	private int courseCapacity;
+	 String getCourseCapacity();
 
-	private String enrollStartDate;
+	 String getEnrollStartDate();
 
-	private String enrollEndDate;
+	 String getEnrollEndDate();
 
-	private String courseImg;
+	 String getCourseImg();
 	
 }

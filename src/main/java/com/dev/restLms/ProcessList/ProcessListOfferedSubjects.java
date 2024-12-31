@@ -1,22 +1,11 @@
 package com.dev.restLms.ProcessList;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+public interface ProcessListOfferedSubjects {
+	 String getOfferedSubjectsId();
 
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
-public class ProcessListOfferedSubjects {
-	private String offeredSubjectsId;
-
-	private String courseId; 
+	 String getCourseId(); 
 	
-	private String officerSessionId ;
+	 String getOfficerSessionId();
 	
-	private String subjectId;
+	 String getSubjectId();
 }
