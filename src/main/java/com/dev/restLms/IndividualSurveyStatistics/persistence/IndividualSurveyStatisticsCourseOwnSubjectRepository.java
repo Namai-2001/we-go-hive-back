@@ -5,7 +5,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import com.dev.restLms.IndividualSurveyStatistics.projection.IndividualSurveyStatisticsCourseOwnSubject;
 import com.dev.restLms.entity.CourseOwnSubject;
 import java.util.Optional;
-import java.util.List;
 
 
 

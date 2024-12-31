@@ -8,11 +8,13 @@ import com.dev.restLms.IndividualSurveyStatistics.persistence.IndividualSurveySt
 import com.dev.restLms.IndividualSurveyStatistics.persistence.IndividualSurveyStatisticsOfferedSubjectsRepository;
 import com.dev.restLms.IndividualSurveyStatistics.persistence.IndividualSurveyStatisticsSubjectRepository;
 import com.dev.restLms.IndividualSurveyStatistics.persistence.IndividualSurveyStatisticsSurveyExecutionRepository;
+import com.dev.restLms.IndividualSurveyStatistics.persistence.IndividualSurveyStatisticsSurveyOwnAnswerRepository;
 import com.dev.restLms.IndividualSurveyStatistics.persistence.IndividualSurveyStatisticsSurveyOwnResultRepository;
 import com.dev.restLms.IndividualSurveyStatistics.persistence.IndividualSurveyStatisticsSurveyQuestionRepository;
 import com.dev.restLms.IndividualSurveyStatistics.projection.IndividualSurveyStatisticsCourseOwnSubject;
 import com.dev.restLms.IndividualSurveyStatistics.projection.IndividualSurveyStatisticsOfferedSubjects;
 import com.dev.restLms.IndividualSurveyStatistics.projection.IndividualSurveyStatisticsSubject;
+import com.dev.restLms.IndividualSurveyStatistics.projection.IndividualSurveyStatisticsSurveyOwnAnswer;
 import com.dev.restLms.IndividualSurveyStatistics.projection.IndividualSurveyStatisticsSurveyOwnResult;
 import com.dev.restLms.IndividualSurveyStatistics.projection.IndividualSurveyStatisticsSurveyQuestion;
 import com.dev.restLms.entity.SurveyExecution;
@@ -59,6 +61,9 @@ public class IndividualSurveyStatisticsController {
 
     @Autowired
     private IndividualSurveyStatisticsSurveyQuestionRepository individualSurveyStatisticsSurveyQuestionRepository;
+
+    @Autowired
+    private IndividualSurveyStatisticsSurveyOwnAnswerRepository individualSurveyStatisticsSurveyOwnAnswerRepository;
 
     @PostMapping("/serachSubject")
     @Operation(summary = "과목 검색")
@@ -209,19 +214,114 @@ public class IndividualSurveyStatisticsController {
 
                 List<Map<String, Object>> resultList = new ArrayList<>();
 
+                int num1 = 0;
+                int num2 = 0;
+                int num3 = 0;
+                int num4 = 0;
+                int num5 = 0;
+                int answerSize = 0;
+
                 List<SurveyExecution> findSurveyExecutions = individualSurveyStatisticsSurveyExecutionRepository.findByOfferedSubjectsIdAndSessionId(offeredSubjectsId, sessionId);
 
-                for(SurveyExecution findSurveyExecution : findSurveyExecutions){
+                if(answerCategory.equals("T")){
 
+                    for(SurveyExecution findSurveyExecution : findSurveyExecutions){
 
+                        List<IndividualSurveyStatisticsSurveyOwnResult> findAnswerIds = individualSurveyStatisticsSurveyOwnResultRepository.findBySurveyExecutionIdAndSurveyQuestionId(findSurveyExecution.getSurveyExecutionId(), surveyQuestionId);
+                        
+                        for(IndividualSurveyStatisticsSurveyOwnResult findAnswerId : findAnswerIds){
+
+                            answerSize = findAnswerIds.size();
+
+                            Optional<IndividualSurveyStatisticsSurveyOwnAnswer> findAnswer = individualSurveyStatisticsSurveyOwnAnswerRepository.findBySurveyAnswerIdAndSurveyQuestionId(findAnswerId.getSurveyAnswerId(), surveyQuestionId);
+
+                            if(findAnswer.isPresent() && findAnswer.get().getScore() != null){
+                                String answerNumber = findAnswer.get().getScore();
+        
+                                if(answerNumber.equals("1")){
+                                    num1 += 1;
+                                }else if(answerNumber.equals("2")){
+                                    num2 += 1;
+                                }else if(answerNumber.equals("3")){
+                                    num3 += 1;
+                                }else if(answerNumber.equals("4")){
+                                    num4 += 1;
+                                }else if(answerNumber.equals("5")){
+                                    num5 += 1;
+                                }
+
+                            }
+
+                        }
+
+                    }
+
+                    HashMap<String, Object> answerMap = new HashMap<>();
+
+                    if(answerSize > 0){
+                        answerMap.put("VeryNo", (int)Math.round((double)num1*100/answerSize));
+                        answerMap.put("No",   (int)Math.round((double)num2*100/answerSize));
+                        answerMap.put("Normal",  (int)Math.round((double)num3*100/answerSize));
+                        answerMap.put("Yes",  (int)Math.round((double)num4*100/answerSize));
+                        answerMap.put("VeryYes",  (int)Math.round((double)num5*100/answerSize));
+                    }else {
+                        // 응답이 없을 경우 0%로 설정
+                        answerMap.put("VeryNo", 0);
+                        answerMap.put("No", 0);
+                        answerMap.put("Normal", 0);
+                        answerMap.put("Yes", 0);
+                        answerMap.put("VeryYes", 0);
+                    }
+                    return ResponseEntity.ok().body(answerMap);
+
+                }else if(answerCategory.equals("F")){
+
+                    for(SurveyExecution findSurveyExecution : findSurveyExecutions){
+
+                        List<IndividualSurveyStatisticsSurveyOwnResult> findFormAnswerIds = individualSurveyStatisticsSurveyOwnResultRepository.findBySurveyExecutionIdAndSurveyQuestionId(findSurveyExecution.getSurveyExecutionId(), surveyQuestionId);
+
+                        for(IndividualSurveyStatisticsSurveyOwnResult findFormAnswerId : findFormAnswerIds){
+
+                            Optional<IndividualSurveyStatisticsSurveyOwnAnswer> findFormAnswer = individualSurveyStatisticsSurveyOwnAnswerRepository.findBySurveyAnswerIdAndSurveyQuestionId(findFormAnswerId.getSurveyAnswerId(), surveyQuestionId);
+
+                            if(findFormAnswer.isPresent() && findFormAnswer.get().getAnswerData() != null){
+
+                                HashMap<String, Object> formAnswerMap = new HashMap<>();
+                                formAnswerMap.put("answerData", findFormAnswer.get().getAnswerData());
+                                resultList.add(formAnswerMap);
+
+                            }
+                            
+                        }
+
+                    }
+
+                    // 페이징 처리
+                    int totalItems = resultList.size();
+                    int start = Math.min(page * size, totalItems);
+                    int end = Math.min((page + 1) * size, totalItems);
+                    List<Map<String, Object>> pagedResult = resultList.subList(start, end);
+
+                    // 전체 페이지 수 계산
+                    int totalPages = (int) Math.ceil((double) totalItems / size);
+
+                    // 결과를 포함한 Map 생성
+                    Map<String, Object> response = new HashMap<>();
+                    response.put("currentPage", page);
+                    response.put("totalItems", totalItems);
+                    response.put("totalPages", totalPages);
+                    response.put("content", pagedResult);
+
+                    return ResponseEntity.ok().body(response);
 
                 }
+
+                return ResponseEntity.status(HttpStatus.CONFLICT).body("문항의 답변이 없습니다.");
 
             } catch (Exception e) {
                 return ResponseEntity.status(HttpStatus.CONFLICT).body("오류 발생 : " + e.getMessage());
             }
 
-        return null;
     }
     
     

@@ -9,4 +9,6 @@ import java.util.List;
 
 public interface IndividualSurveyStatisticsSurveyOwnResultRepository extends JpaRepository<SurveyOwnResult, String> {
     List<IndividualSurveyStatisticsSurveyOwnResult> findBySurveyExecutionId(String surveyExecutionId);
+
+    List<IndividualSurveyStatisticsSurveyOwnResult> findBySurveyExecutionIdAndSurveyQuestionId(String surveyExecutionId, String surveyQuestionId);
 }

@@ -82,11 +82,11 @@ public class QuestionBoardController {
             String permissionGroupName = permissionGroup.get().getPermissionName();
 
             switch (permissionGroupName) {
-                case "SITE_OFFICER" , "OFFICER":
+                case "SITE_OFFICER":
                     Map<String, Object> response1 = saveboardPost(sessionId, offeredSubjectsId, page, size);
                     return ResponseEntity.ok().body(response1);
 
-                case "COURSE_OFFICER":
+                case "INDIV_OFFICER", "OFFICER":
                     // 해당 과정의 책임자인지 확인
                     Optional<QuestionBoardOfferedSubjects> courseOfficerCheck = questionBoardOfferedSubjectsRepository.findByOfferedSubjectsIdAndOfficerSessionId(offeredSubjectsId, sessionId);
                     if(courseOfficerCheck.isPresent()){

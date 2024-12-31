@@ -334,7 +334,7 @@ public class SurveyStatisticsController {
                     // 해당 문항의 답변 확인
                     Optional<SurveyStatisticsSurveyOwnAnswer> findAnswer = surveyStatisticsSurveyOwnAnswerRepository.findBySurveyAnswerIdAndSurveyQuestionId(findAnswerId.getSurveyAnswerId(), surveyQuestionId);
 
-                    if(findAnswer.isPresent()){
+                    if(findAnswer.isPresent() && findAnswer.get().getScore() != null){
                         String answerNumber = findAnswer.get().getScore();
 
                         if(answerNumber.equals("1")){
@@ -381,7 +381,7 @@ public class SurveyStatisticsController {
                     // 해당 문항의 답변 확인
                     Optional<SurveyStatisticsSurveyOwnAnswer> findFormAnswer = surveyStatisticsSurveyOwnAnswerRepository.findBySurveyAnswerIdAndSurveyQuestionId(findFormAnswerId.getSurveyAnswerId(), surveyQuestionId);
 
-                    if(findFormAnswer.isPresent()){
+                    if(findFormAnswer.isPresent() && findFormAnswer.get().getAnswerData() != null){
 
                         HashMap<String, Object> formAnswerMap = new HashMap<>();
                         formAnswerMap.put("answerData", findFormAnswer.get().getAnswerData());
