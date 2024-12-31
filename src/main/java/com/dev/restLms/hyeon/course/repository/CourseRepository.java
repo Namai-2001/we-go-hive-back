@@ -7,5 +7,5 @@ import com.dev.restLms.entity.Course;
 
 @Repository
 public interface CourseRepository extends JpaRepository<Course, String> {
-	Course findBycourseId (String courseId);
+	Course findByCourseId (String courseId);
 }

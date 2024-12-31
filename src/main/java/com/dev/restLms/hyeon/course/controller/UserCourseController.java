@@ -123,7 +123,7 @@ public class UserCourseController {
         List<Course> courses = new ArrayList<>();
         if (userOwnCourses != null) {
             for (UserOwnCourse userOwnCourse : userOwnCourses) {
-                Course course = courseRepository.findBycourseId(userOwnCourse.getCourseId());
+                Course course = courseRepository.findByCourseId(userOwnCourse.getCourseId());
                 if (course != null) {
                     courses.add(course);
                 }
@@ -242,7 +242,7 @@ public class UserCourseController {
                 List<Map<String, Object>> courseSubjectDetails = new ArrayList<>();
 
                 // 과정명 조회
-                Course course = courseRepository.findBycourseId(offeredSubject.getCourseId());
+                Course course = courseRepository.findByCourseId(offeredSubject.getCourseId());
                 String courseName = course != null ? course.getCourseTitle() : "과정 정보 없음";
 
                 for (CourseOwnSubject courseOwnSubject : courseSubjects) {
