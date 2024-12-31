@@ -1,5 +1,7 @@
 package com.dev.restLms.pairToJuSe.SubjectVideoService.controller;
 
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
 // import java.util.HashMap;
@@ -9,6 +11,10 @@ import java.util.Map;
 import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.UrlResource;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -18,6 +24,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.dev.restLms.entity.CourseOwnSubject;
+import com.dev.restLms.entity.FileInfo;
 import com.dev.restLms.entity.OfferedSubjects;
 import com.dev.restLms.entity.Subject;
 import com.dev.restLms.entity.User;
@@ -30,6 +37,7 @@ import com.dev.restLms.pairToJuSe.SubjectVideoService.repository.COS_Repository;
 // import com.dev.restLms.pairToJuSe.SubjectVideoService.projection.S_Projection;
 // import com.dev.restLms.pairToJuSe.SubjectVideoService.repository.COS_Repository;
 import com.dev.restLms.pairToJuSe.SubjectVideoService.repository.C_Repository;
+import com.dev.restLms.pairToJuSe.SubjectVideoService.repository.File_Repository;
 import com.dev.restLms.pairToJuSe.SubjectVideoService.repository.OS2_Repository;
 import com.dev.restLms.pairToJuSe.SubjectVideoService.repository.OS3_Repository;
 // import com.dev.restLms.pairToJuSe.SubjectVideoService.repository.OS_Repository;
@@ -50,6 +58,9 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 public class OP_Controller {
     @Autowired
     private C_Repository c_repository;
+
+    @Autowired
+    private File_Repository fileRepo;
 
     // @Autowired
     // private OS_Repository os_repository;
@@ -393,4 +404,28 @@ public class OP_Controller {
         return ResponseEntity.ok(result);
     }
 
+    // 이미지 반환
+    @GetMapping("/op/images/{fileNo:.+}")
+    public ResponseEntity<Resource> getImage(@PathVariable String fileNo) {
+        try {
+            Optional<FileInfo> fileInfoOptional = fileRepo.findByFileNo(fileNo);
+            if (!fileInfoOptional.isPresent()) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
+            }
+
+            FileInfo fileInfo = fileInfoOptional.get();
+            Path filePath = Paths.get(fileInfo.getFilePath() + fileInfo.getEncFileNm());
+            Resource resource = new UrlResource(filePath.toUri());
+
+            if (resource.exists() || resource.isReadable()) {
+                return ResponseEntity.ok()
+                        .contentType(MediaType.IMAGE_JPEG) // 이미지 형식에 맞게 설정
+                        .body(resource);
+            } else {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
+            }
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+        }
+    }
 }

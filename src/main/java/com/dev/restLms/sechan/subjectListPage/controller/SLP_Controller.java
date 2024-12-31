@@ -1,18 +1,26 @@
 package com.dev.restLms.sechan.subjectListPage.controller;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.UrlResource;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.dev.restLms.entity.FileInfo;
 import com.dev.restLms.entity.OfferedSubjects;
 import com.dev.restLms.entity.Subject;
 import com.dev.restLms.entity.User;
 import com.dev.restLms.sechan.subjectListPage.projection.S_Projection;
 import com.dev.restLms.sechan.subjectListPage.projection.SLP_U_Projection;
+import com.dev.restLms.sechan.subjectListPage.repository.SLP_F_Repository;
 import com.dev.restLms.sechan.subjectListPage.repository.SLP_OS_Repository;
 import com.dev.restLms.sechan.subjectListPage.repository.SLP_S_Repository;
 import com.dev.restLms.sechan.subjectListPage.repository.SLP_U_Repository;
@@ -20,10 +28,13 @@ import com.dev.restLms.sechan.subjectListPage.repository.SLP_U_Repository;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @RestController
 @Tag(name = "과목 조회", description = "개설된 전체 과목 조회")
@@ -34,6 +45,9 @@ public class SLP_Controller {
 
     @Autowired
     private SLP_S_Repository slp_s_repository;
+
+    @Autowired
+    private SLP_F_Repository slp_f_repository;
 
     @GetMapping("/subjectInfo")
     @Operation(summary = "전체 개설 과목 조회", description = "개설이 완료된 전체 과목을 조회합니다.")
@@ -192,6 +206,31 @@ public class SLP_Controller {
         response.put("subjects", result);
 
         return response;
+    }
+
+    // 이미지 반환
+    @GetMapping("/slp/images/{fileNo:.+}")
+    public ResponseEntity<Resource> getImage(@PathVariable String fileNo) {
+        try {
+            Optional<FileInfo> fileInfoOptional = slp_f_repository.findByFileNo(fileNo);
+            if (!fileInfoOptional.isPresent()) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
+            }
+
+            FileInfo fileInfo = fileInfoOptional.get();
+            Path filePath = Paths.get(fileInfo.getFilePath() + fileInfo.getEncFileNm());
+            Resource resource = new UrlResource(filePath.toUri());
+
+            if (resource.exists() || resource.isReadable()) {
+                return ResponseEntity.ok()
+                        .contentType(MediaType.IMAGE_JPEG) // 이미지 형식에 맞게 설정
+                        .body(resource);
+            } else {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
+            }
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+        }
     }
 
 }

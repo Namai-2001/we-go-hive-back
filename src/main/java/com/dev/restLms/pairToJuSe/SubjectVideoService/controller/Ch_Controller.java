@@ -1,21 +1,32 @@
 package com.dev.restLms.pairToJuSe.SubjectVideoService.controller;
 
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.UrlResource;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.dev.restLms.entity.FileInfo;
 import com.dev.restLms.pairToJuSe.SubjectVideoService.projection.Ch_OS_S_Projection;
 import com.dev.restLms.pairToJuSe.SubjectVideoService.projection.Ch_SOV_Projection;
 import com.dev.restLms.pairToJuSe.SubjectVideoService.projection.Ch_S_Projection;
@@ -28,6 +39,7 @@ import com.dev.restLms.pairToJuSe.SubjectVideoService.repository.Ch_S_Repository
 import com.dev.restLms.pairToJuSe.SubjectVideoService.repository.Ch_UOSV_Repository;
 import com.dev.restLms.pairToJuSe.SubjectVideoService.repository.Ch_U_Repository;
 import com.dev.restLms.pairToJuSe.SubjectVideoService.repository.Ch_V_Repository;
+import com.dev.restLms.pairToJuSe.SubjectVideoService.repository.File_Repository;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -134,7 +146,10 @@ public class Ch_Controller {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
 
-        Pageable pageable = PageRequest.of(page, size);
+        // 정렬 조건 추가
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.ASC, "videoSortIndex"));
+
+        // 쿼리 결과 조회
         Page<Ch_SOV_Projection> sovResults = ch_SOV_Repository
                 .findBySovOfferedSubjectsIdContaining(sovOfferedSubjectsId, pageable);
 
@@ -176,6 +191,9 @@ public class Ch_Controller {
     @Autowired
     Ch_U_Repository ch_U_Repository;
 
+    @Autowired
+    File_Repository fileRepo;
+
     @GetMapping("/getSubjectInfo")
     @Operation(summary = "과목 정보 조회", description = "과목명, 강사명 조회")
     public Map<String, String> getSubjectName(
@@ -199,5 +217,30 @@ public class Ch_Controller {
         result.put("title", subjectName);
         result.put("teacherName", teacherName);
         return result;
+    }
+
+    // 이미지 반환
+    @GetMapping("/images/{fileNo:.+}")
+    public ResponseEntity<Resource> getImage(@PathVariable String fileNo) {
+        try {
+            Optional<FileInfo> fileInfoOptional = fileRepo.findByFileNo(fileNo);
+            if (!fileInfoOptional.isPresent()) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
+            }
+
+            FileInfo fileInfo = fileInfoOptional.get();
+            Path filePath = Paths.get(fileInfo.getFilePath() + fileInfo.getEncFileNm());
+            Resource resource = new UrlResource(filePath.toUri());
+
+            if (resource.exists() || resource.isReadable()) {
+                return ResponseEntity.ok()
+                        .contentType(MediaType.IMAGE_JPEG) // 이미지 형식에 맞게 설정
+                        .body(resource);
+            } else {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
+            }
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+        }
     }
 }

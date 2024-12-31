@@ -1,5 +1,7 @@
 package com.dev.restLms.sechan.subjectInfoDetailPage.controller;
 
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -7,21 +9,27 @@ import java.util.Map;
 import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.UrlResource;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.dev.restLms.entity.FileInfo;
 import com.dev.restLms.entity.OfferedSubjects;
 import com.dev.restLms.entity.SubjectOwnVideo;
 import com.dev.restLms.entity.UserOwnAssignment;
 import com.dev.restLms.entity.UserOwnSubjectVideo;
 import com.dev.restLms.sechan.subjectInfoDetailPage.projection.SID_S_Projection;
 import com.dev.restLms.sechan.subjectInfoDetailPage.projection.SID_U_Projection;
+import com.dev.restLms.sechan.subjectInfoDetailPage.repository.SID_F_Repository;
 import com.dev.restLms.sechan.subjectInfoDetailPage.repository.SID_OS_Repository;
 import com.dev.restLms.sechan.subjectInfoDetailPage.repository.SID_SOV_Repository;
 import com.dev.restLms.sechan.subjectInfoDetailPage.repository.SID_S_Repository;
@@ -53,6 +61,9 @@ public class SID_Controller {
 
     @Autowired
     private SID_UOSV_Repository sid_uosv_repository;
+
+    @Autowired
+    private SID_F_Repository sid_f_repository;
 
     @GetMapping("/subjectInfoDetail")
     @Operation(summary = "특정 개설 과목 조회", description = "개설이 완료된 특정 과목의 세부 정보를 조회합니다.")
@@ -193,5 +204,30 @@ public class SID_Controller {
         sid_uosv_repository.saveAll(userOwnSubjectVideos);
 
         return ResponseEntity.ok("과목 신청이 완료되었습니다.");
+    }
+
+    // 이미지 반환
+    @GetMapping("/sid/images/{fileNo:.+}")
+    public ResponseEntity<Resource> getImage(@PathVariable String fileNo) {
+        try {
+            Optional<FileInfo> fileInfoOptional = sid_f_repository.findByFileNo(fileNo);
+            if (!fileInfoOptional.isPresent()) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
+            }
+
+            FileInfo fileInfo = fileInfoOptional.get();
+            Path filePath = Paths.get(fileInfo.getFilePath() + fileInfo.getEncFileNm());
+            Resource resource = new UrlResource(filePath.toUri());
+
+            if (resource.exists() || resource.isReadable()) {
+                return ResponseEntity.ok()
+                        .contentType(MediaType.IMAGE_JPEG) // 이미지 형식에 맞게 설정
+                        .body(resource);
+            } else {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
+            }
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+        }
     }
 }

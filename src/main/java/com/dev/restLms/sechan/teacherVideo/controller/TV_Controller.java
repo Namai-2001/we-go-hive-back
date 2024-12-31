@@ -314,17 +314,31 @@ public class TV_Controller {
             subjectOwnVideo.setVideoSortIndex(videoSortIndex);
             tv_sov_repository.save(subjectOwnVideo);
 
-            // 3. UserOwnSubjectVideo 업데이트
+            // 3. UserOwnSubjectVideo 업데이트 - 이미 수강 중인 사용자들에게 새로운 영상 추가
             List<UserOwnSubjectVideo> userVideos = tv_uosv_repository.findByUosvOfferedSubjectsId(offeredSubjectsId);
 
+            // 기존 episodeId를 리스트로 수집
+            List<String> existingEpisodeIds = new ArrayList<>();
             for (UserOwnSubjectVideo userVideo : userVideos) {
-                UserOwnSubjectVideo newUserVideo = new UserOwnSubjectVideo();
-                newUserVideo.setUosvSessionId(userVideo.getUosvSessionId());
-                newUserVideo.setUosvEpisodeId(subjectOwnVideo.getEpisodeId());
-                newUserVideo.setUosvOfferedSubjectsId(offeredSubjectsId);
-                newUserVideo.setProgress("0");
-                newUserVideo.setUosvFinal("0");
-                tv_uosv_repository.save(newUserVideo);
+                String episodeId = userVideo.getUosvEpisodeId();
+                if (!existingEpisodeIds.contains(episodeId)) {
+                    existingEpisodeIds.add(episodeId);
+                }
+            }
+
+            String newEpisodeId = subjectOwnVideo.getEpisodeId();
+
+            // 새로운 영상이 기존 사용자 데이터에 없는 경우 추가
+            if (!existingEpisodeIds.contains(newEpisodeId)) {
+                for (UserOwnSubjectVideo userVideo : userVideos) {
+                    UserOwnSubjectVideo newUserVideo = new UserOwnSubjectVideo();
+                    newUserVideo.setUosvSessionId(userVideo.getUosvSessionId());
+                    newUserVideo.setUosvEpisodeId(newEpisodeId);
+                    newUserVideo.setUosvOfferedSubjectsId(offeredSubjectsId);
+                    newUserVideo.setProgress("0");
+                    newUserVideo.setUosvFinal("0");
+                    tv_uosv_repository.save(newUserVideo);
+                }
             }
 
             return ResponseEntity.ok("영상과 과목 연결 정보가 성공적으로 저장되었습니다.");
