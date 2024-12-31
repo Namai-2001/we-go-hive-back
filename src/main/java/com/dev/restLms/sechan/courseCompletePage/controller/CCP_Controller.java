@@ -1,8 +1,9 @@
 package com.dev.restLms.sechan.courseCompletePage.controller;
 
+import java.io.FileNotFoundException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.DirectoryStream;
+// import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -20,6 +21,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
+// import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.dev.restLms.entity.Assignment;
@@ -31,7 +33,7 @@ import com.dev.restLms.entity.SurveyOwnResult;
 import com.dev.restLms.entity.UserOwnAssignmentEvaluation;
 import com.dev.restLms.entity.UserOwnCourse;
 import com.dev.restLms.entity.UserOwnSubjectVideo;
-import com.dev.restLms.sechan.courseCompletePage.projection.CCP_UOSV_Projection;
+// import com.dev.restLms.sechan.courseCompletePage.projection.CCP_UOSV_Projection;
 import com.dev.restLms.sechan.courseCompletePage.repository.CCP_A_Repository;
 import com.dev.restLms.sechan.courseCompletePage.repository.CCP_C_Repository;
 import com.dev.restLms.sechan.courseCompletePage.repository.CCP_OS_Repository;
@@ -45,6 +47,7 @@ import com.dev.restLms.sechan.courseCompletePage.repository.CCP_UOSV_Repository;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 
 @RestController
 @RequestMapping("/courseComplete")
@@ -81,14 +84,7 @@ public class CCP_Controller {
     @Autowired
     private CCP_C_Repository ccp_c_repository;
 
-    private UserOwnCourse validateCourseAndApproval(String courseId, String sessionId) {
-        Optional<UserOwnCourse> userOwnCourseOpt = ccp_uoc_repository.findByCourseIdAndSessionId(courseId, sessionId);
-        if (userOwnCourseOpt.isEmpty()) {
-            return null;
-        }
-        UserOwnCourse userOwnCourse = userOwnCourseOpt.get();
-        return "T".equals(userOwnCourse.getCourseApproval()) ? userOwnCourse : null;
-    }
+    
 
     @GetMapping("/user-courses")
     @Operation(summary = "사용자의 과정 확인", description = "사용자의 모든 과정을 반환합니다.")
@@ -202,75 +198,78 @@ public class CCP_Controller {
     @GetMapping("/download/certificate/{courseId}")
     @Operation(summary = "수료증 다운로드", description = "수료증 다운로드 (courseApproval이 'T'인 경우에만)")
     public ResponseEntity<?> downloadCertificate(@PathVariable String courseId) {
-        UsernamePasswordAuthenticationToken auth = (UsernamePasswordAuthenticationToken) SecurityContextHolder
-                .getContext().getAuthentication();
-        String userSessionId = auth.getPrincipal().toString();
+        try {
+            // 사용자 인증 정보 가져오기
+            // UsernamePasswordAuthenticationToken auth = (UsernamePasswordAuthenticationToken) SecurityContextHolder
+            //         .getContext().getAuthentication();
+            // String userSessionId = auth.getPrincipal().toString();
 
-        // 사용자 과정 및 승인 상태 확인
-        UserOwnCourse userOwnCourse = validateCourseAndApproval(courseId, userSessionId);
-        if (userOwnCourse == null) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("수료 상태가 아닙니다. 수료증을 다운로드할 수 없습니다.");
-        }
+            
 
-        // courseId에 해당하는 courseTitle 가져오기
-        Optional<Course> courseOpt = ccp_c_repository.findById(courseId);
-        if (courseOpt.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("해당 과정을 찾을 수 없습니다.");
-        }
-        String courseTitle = courseOpt.get().getCourseTitle();
-
-        // 수료증 경로 생성
-        String filePath = "src/main/resources/static/Certificates/" + courseTitle;
-        Path directoryPath = Paths.get(filePath);
-
-        try (DirectoryStream<Path> directoryStream = Files.newDirectoryStream(directoryPath)) {
-            // 디렉토리 내 첫 번째 파일 찾기
-            Path fileToDownload = null;
-            for (Path path : directoryStream) {
-                if (Files.isRegularFile(path)) {
-                    fileToDownload = path;
-                    break;
-                }
+            // courseId에 해당하는 courseTitle 가져오기
+            Optional<Course> courseOpt = ccp_c_repository.findById(courseId);
+            if (courseOpt.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body("해당 과정을 찾을 수 없습니다.");
             }
+            String courseTitle = courseOpt.get().getCourseTitle();
 
-            if (fileToDownload == null) {
-                return ResponseEntity.status(HttpStatus.NOT_FOUND).body("수료증 파일을 찾을 수 없습니다.");
-            }
+            // 수료증 경로 생성
+            String filePath = "src/main/resources/static/Certificates/" + courseTitle;
+            Path directoryPath = Paths.get(filePath);
+
+            // 디렉토리에서 파일 찾기
+            Path fileToDownload = Files.list(directoryPath)
+                    .filter(Files::isRegularFile)
+                    .findFirst()
+                    .orElseThrow(() -> new FileNotFoundException("수료증 파일을 찾을 수 없습니다."));
 
             // MIME 타입 설정
             String mimeType = Files.probeContentType(fileToDownload);
-            if (mimeType == null) {
-                String fileExtension = fileToDownload.getFileName().toString().split("\\.")[1];
-                switch (fileExtension.toLowerCase()) {
-                    case "jpg":
-                    case "jpeg":
-                        mimeType = "image/jpeg";
-                        break;
-                    case "png":
-                        mimeType = "image/png";
-                        break;
-                    case "gif":
-                        mimeType = "image/gif";
-                        break;
-                    default:
-                        mimeType = "application/octet-stream";
-                }
-            }
+            if (mimeType == null)
+                mimeType = "application/pdf"; // 기본값
 
-            // 파일 이름 유지하여 다운로드
+            // 파일 이름 설정
             String fileName = fileToDownload.getFileName().toString();
             String encodedFileName = URLEncoder.encode(fileName, StandardCharsets.UTF_8).replace("+", "%20");
-            String contentDisposition = "attachment; filename=\"" + encodedFileName + "\"";
 
+            // 파일 데이터 반환
             return ResponseEntity.ok()
-                    .header("Content-Disposition", contentDisposition)
+                    .header("Content-Disposition", "attachment; filename=\"" + encodedFileName + "\"")
                     .header("Content-Type", mimeType)
                     .header("Cache-Control", "no-cache, no-store, must-revalidate")
                     .header("Pragma", "no-cache")
                     .header("Expires", "0")
                     .body(Files.readAllBytes(fileToDownload));
+        } catch (FileNotFoundException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("파일 다운로드 중 오류가 발생했습니다.");
         }
     }
+
+    // // 파일 확장자 추출
+    // private String getFileExtension(String fileName) {
+    //     int lastIndexOfDot = fileName.lastIndexOf('.');
+    //     if (lastIndexOfDot == -1) {
+    //         return ""; // 확장자가 없는 경우 빈 문자열 반환
+    //     }
+    //     return fileName.substring(lastIndexOfDot + 1).toLowerCase();
+    // }
+
+    // // 확장자 기반으로 MIME 타입 반환
+    // private String getMimeType(String fileExtension) {
+    //     switch (fileExtension) {
+    //         case "pdf":
+    //             return "application/pdf";
+    //         case "jpg":
+    //         case "jpeg":
+    //             return "image/jpeg";
+    //         case "png":
+    //             return "image/png";
+    //         case "gif":
+    //             return "image/gif";
+    //         default:
+    //             return "application/octet-stream"; // 기본값
+    //     }
+    // }
 }
