@@ -5,4 +5,5 @@ public interface SurveyStatisticsCourse {
 
     String getSessionId();
     String getCourseTitle();
+    String getCourseEndDate();
 }

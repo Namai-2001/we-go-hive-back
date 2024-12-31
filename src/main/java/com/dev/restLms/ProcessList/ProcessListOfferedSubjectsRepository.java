@@ -12,5 +12,5 @@ import java.util.Optional;
 @Repository
 public interface ProcessListOfferedSubjectsRepository extends JpaRepository<OfferedSubjects, String> {
     List<ProcessListOfferedSubjects> findByCourseIdAndOfficerSessionIdAndSubjectId(String courseId, String officerSessionId, String subjectId);
-    Optional<ProcessListOfferedSubjects> findBySubjectId(String subjectId);
+    Optional<ProcessListOfferedSubjects> findBySubjectIdAndOfficerSessionId(String subjectId, String officerSessionId);
 }
