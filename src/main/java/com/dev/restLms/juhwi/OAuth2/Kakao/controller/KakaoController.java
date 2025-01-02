@@ -5,27 +5,6 @@ import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
-
-// import org.springframework.web.bind.annotation.*;
-// import org.springframework.web.reactive.function.client.WebClient;
-
-// @RestController
-// @RequestMapping("/Oauth2/kakao")
-// public class KakaoContoller {
-
-//    // 여기부터 만드는 거
-//    @GetMapping("/validate")
-//    public String validate(@RequestParam String accessToken) {
-
-//       // 카카오에 요청 보내서 email 값 가져오기
-//       WebClient webClient = WebClient.create("https://kapi.kakao.com/v2/user/me");
-//       String response = webClient.get()
-//             .header("Content-Type", "application/x-www-form-urlencoded;charset=utf-8")
-//             .header("Authorization", "Bearer " + accessToken).retrieve().bodyToMono(String.class).block();
-
-//       return null;
-//    }
-// }
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -63,7 +42,6 @@ public class KakaoController {
     @Autowired
     Kakao_Ue_Repository kakao_Ue_Repository;
 
-    @SuppressWarnings("null")
     // 엑세스 토큰을 통해 사용자의 이메일 값을 가져오는 기능
     @GetMapping("/validate")
     public ResponseEntity<?> validate(@Parameter(name = "Access Token 으로 이메일 값 가져오기", description = "이메일 값 반환") @RequestParam String accessToken) {
@@ -132,7 +110,6 @@ public class KakaoController {
         ResponseEntity<?> loginInfo = validate(response.getAccess_token());
         unLink(response.getAccess_token());
         return loginInfo;
-
     }
     // 카카오 앱과 연결 해제
     @GetMapping("/unlink")
@@ -184,5 +161,4 @@ public class KakaoController {
     // LoginEmails loginEmails = new LoginEmails(response, request);
     // return ResponseEntity.ok(loginEmails);
     // }
-
 }
