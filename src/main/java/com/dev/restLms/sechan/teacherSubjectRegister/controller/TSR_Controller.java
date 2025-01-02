@@ -35,12 +35,16 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.dev.restLms.entity.CourseOwnSubject;
 import com.dev.restLms.entity.FileInfo;
+import com.dev.restLms.entity.PermissionGroup;
 import com.dev.restLms.entity.Subject;
+import com.dev.restLms.entity.UserOwnPermissionGroup;
 // import com.dev.restLms.hyeon.course.repository.SubjectRepository;
 import com.dev.restLms.sechan.teacherSubjectRegister.repository.TSR_COS2_Repository;
 import com.dev.restLms.sechan.teacherSubjectRegister.repository.TSR_COS_Repository;
 import com.dev.restLms.sechan.teacherSubjectRegister.repository.TSR_File_Repository;
+import com.dev.restLms.sechan.teacherSubjectRegister.repository.TSR_PGR_Repository;
 import com.dev.restLms.sechan.teacherSubjectRegister.repository.TSR_S_Repository;
+import com.dev.restLms.sechan.teacherSubjectRegister.repository.TSR_UOPGR_Repository;
 
 import io.swagger.v3.oas.annotations.Operation;
 
@@ -62,6 +66,12 @@ public class TSR_Controller {
 
     @Autowired
     private TSR_COS2_Repository tsr_cos2_repository;
+
+    @Autowired
+    private TSR_PGR_Repository tsr_pgr_repository;
+
+    @Autowired
+    private TSR_UOPGR_Repository tsr_uopgr_repository;
 
     private static final String ROOT_DIR = "src/main/resources/static/";
     private static final String UPLOAD_DIR = "SubjectImage/";
@@ -128,8 +138,27 @@ public class TSR_Controller {
         String subjectDesc = requestData.get("subjectDesc");
         String subjectCategory = requestData.get("subjectCategory");
         String subjectPromotion = requestData.get("subjectPromotion");
-        String officerSessionId = "12g8h9i0j-1k2l-m3n4-o5p6-q7r8s9t0u1v";
         String courseId = "individual-subjects";
+
+        // 권한명이 INDIV_OFFICER인 PermissionGroup의 UUID 조회
+        Optional<PermissionGroup> permissionGroupOptional = tsr_pgr_repository
+                .findByPermissionName("INDIV_OFFICER");
+
+        if (permissionGroupOptional.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("권한명이 INDIV_OFFICER인 그룹을 찾을 수 없습니다.");
+        }
+
+        String permissionGroupUuid = permissionGroupOptional.get().getPermissionGroupUuid();
+
+        // UserOwnPermissionGroup에서 권한 그룹 UUID를 가진 사용자의 sessionId 조회
+        Optional<UserOwnPermissionGroup> userOwnPermissionGroupOptional = tsr_uopgr_repository
+                .findByPermissionGroupUuid2(permissionGroupUuid);
+
+        if (userOwnPermissionGroupOptional.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("권한명이 INDIV_OFFICER인 사용자를 찾을 수 없습니다.");
+        }
+
+        String officerSessionId = userOwnPermissionGroupOptional.get().getSessionId();
 
         Map<String, Object> result = saveFile(file, subjectName);
         Path path = (Path) result.get("path");
@@ -165,7 +194,7 @@ public class TSR_Controller {
         courseOwnSubject.setSubjectId(savedSubject.getSubjectId());
         courseOwnSubject.setCourseId(courseId);
         courseOwnSubject.setSubjectApproval("F");
-        courseOwnSubject.setOfficerSessionId(officerSessionId);
+        courseOwnSubject.setOfficerSessionId(officerSessionId); // 동적으로 가져온 officerSessionId 설정
 
         tsr_cos_repository.save(courseOwnSubject);
 

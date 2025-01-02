@@ -1,6 +1,7 @@
 package com.dev.restLms.sechan.SurveyMain.controller;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -15,9 +16,11 @@ import com.dev.restLms.entity.OfferedSubjects;
 import com.dev.restLms.entity.SurveyExecution;
 import com.dev.restLms.entity.SurveyOwnAnswer;
 import com.dev.restLms.entity.SurveyOwnResult;
+// import com.dev.restLms.entity.SurveyOwnResult;
+import com.dev.restLms.entity.SurveyQuestion;
 import com.dev.restLms.sechan.SurveyMain.dto.SM_Survey_DTO;
 import com.dev.restLms.sechan.SurveyMain.projection.SM_C_Projection;
-import com.dev.restLms.sechan.SurveyMain.projection.SM_SQ_Projection;
+// import com.dev.restLms.sechan.SurveyMain.projection.SM_SQ_Projection;
 import com.dev.restLms.sechan.SurveyMain.projection.SM_S_Projection;
 import com.dev.restLms.sechan.SurveyMain.projection.SM_UOC_Projection;
 import com.dev.restLms.sechan.SurveyMain.projection.SM_UOSV_Projection;
@@ -26,6 +29,7 @@ import com.dev.restLms.sechan.SurveyMain.repository.SM_OS_Repository;
 import com.dev.restLms.sechan.SurveyMain.repository.SM_SE_Repository;
 import com.dev.restLms.sechan.SurveyMain.repository.SM_SOA_Repository;
 import com.dev.restLms.sechan.SurveyMain.repository.SM_SOR_Repository;
+import com.dev.restLms.sechan.SurveyMain.repository.SM_SQ2_Repository;
 import com.dev.restLms.sechan.SurveyMain.repository.SM_SQ_Repository;
 import com.dev.restLms.sechan.SurveyMain.repository.SM_S_Repository;
 import com.dev.restLms.sechan.SurveyMain.repository.SM_UOC_Repository;
@@ -72,6 +76,9 @@ public class SM_Controller {
     @Autowired
     private SM_SOR_Repository sm_sor_repository;
 
+    @Autowired
+    private SM_SQ2_Repository sm_sq2_repository;
+
     // 날짜 형식 변환 함수
     // public static String convertTo8DigitDate(String dateString) {
     // DateTimeFormatter inputFormatter =
@@ -111,8 +118,10 @@ public class SM_Controller {
                 .getContext().getAuthentication();
         // 유저 세션아이디 보안 컨텍스트에서 가져오기
         String sessionId = auth.getPrincipal().toString();
+
         List<Map<String, Object>> courseResponse = new ArrayList<>();
 
+        // 사용자 과정 조회
         // 사용자 과정 조회
         List<SM_UOC_Projection> userCourses = sm_uoc_repository.findBySessionId(sessionId);
         List<String> courseIds = new ArrayList<>();
@@ -130,9 +139,23 @@ public class SM_Controller {
 
             if (!surveyExecutions.isEmpty()) {
                 for (SurveyExecution surveyExecution : surveyExecutions) {
-                    // 설문 완료 여부 확인
-                    boolean isSurveyCompleted = sm_sor_repository.existsBySurveyExecutionIdAndSessionId(
+                    boolean isSurveyCompleted = true;
+                    List<SurveyOwnResult> results = sm_sor_repository.findBySurveyExecutionIdAndSessionId(
                             surveyExecution.getSurveyExecutionId(), sessionId);
+
+                    if (!results.isEmpty()) {
+                        for (SurveyOwnResult result : results) {
+                            Optional<SurveyOwnAnswer> answerOpt = sm_soa_repository
+                                    .findById(result.getSurveyAnswerId());
+                            if (answerOpt.isEmpty() ||
+                                    (answerOpt.get().getAnswerData() == null && answerOpt.get().getScore() == null)) {
+                                isSurveyCompleted = false;
+                                break;
+                            }
+                        }
+                    } else {
+                        isSurveyCompleted = false;
+                    }
 
                     String courseApproval = "F";
                     for (SM_UOC_Projection userCourse : userCourses) {
@@ -145,7 +168,6 @@ public class SM_Controller {
                     String courseStartDate = course.getCourseStartDate();
                     String courseEndDate = course.getCourseEndDate();
 
-                    // 중간 날짜 계산
                     LocalDate midDate = null;
                     if (courseStartDate != null && courseEndDate != null) {
                         LocalDate startDate = LocalDate.parse(courseStartDate.substring(0, 8),
@@ -155,23 +177,18 @@ public class SM_Controller {
                         midDate = startDate.plusDays((ChronoUnit.DAYS.between(startDate, endDate)) / 2);
                     }
 
-                    // 설문 가능 여부 결정
                     String surveyStatus = isSurveyCompleted
-                            ? "F" // 설문이 완료된 경우
+                            ? "F"
                             : ("F".equals(courseApproval) && midDate != null
                                     && today.compareTo(midDate.format(DateTimeFormatter.ofPattern("yyyyMMdd"))) >= 0)
-                                            ? "T" // 과정 승인 "F"이며, 중간 날짜 이후 설문 가능
-                                            : "F"; // 기본 설문 불가능
-
-                    String formattedCourseEndDate = courseEndDate != null ? convertTo8DigitDate(courseEndDate) : null;
-                    String formattedCourseStartDate = courseStartDate != null ? convertTo8DigitDate(courseStartDate)
-                            : null;
+                                            ? "T"
+                                            : "F";
 
                     courseData.put("courseId", course.getCourseId());
                     courseData.put("courseTitle", course.getCourseTitle());
-                    courseData.put("courseStartDate", formattedCourseStartDate);
+                    courseData.put("courseStartDate", convertTo8DigitDate(courseStartDate));
                     courseData.put("courseMidDate", midDate);
-                    courseData.put("courseEndDate", formattedCourseEndDate);
+                    courseData.put("courseEndDate", convertTo8DigitDate(courseEndDate));
                     courseData.put("courseApproval", courseApproval);
                     courseData.put("surveyStatus", surveyStatus);
                     courseData.put("surveyExecutionId", surveyExecution.getSurveyExecutionId());
@@ -179,6 +196,7 @@ public class SM_Controller {
                 courseResponse.add(courseData);
             }
         }
+
         return courseResponse;
     }
 
@@ -195,7 +213,10 @@ public class SM_Controller {
         Map<String, List<SM_UOSV_Projection>> groupedVideos = new HashMap<>();
 
         for (SM_UOSV_Projection video : userVideos) {
-            groupedVideos.computeIfAbsent(video.getUosvOfferedSubjectsId(), k -> new ArrayList<>()).add(video);
+            if (!groupedVideos.containsKey(video.getUosvOfferedSubjectsId())) {
+                groupedVideos.put(video.getUosvOfferedSubjectsId(), new ArrayList<>());
+            }
+            groupedVideos.get(video.getUosvOfferedSubjectsId()).add(video);
         }
 
         for (Map.Entry<String, List<SM_UOSV_Projection>> entry : groupedVideos.entrySet()) {
@@ -206,21 +227,40 @@ public class SM_Controller {
 
             if (surveyExecutionOpt.isPresent()) {
                 SurveyExecution surveyExecution = surveyExecutionOpt.get();
+                boolean isSurveyCompleted = true;
 
-                // 설문 완료 여부 확인
-                boolean isSurveyCompleted = sm_sor_repository.existsBySurveyExecutionIdAndSessionId(
+                List<SurveyOwnResult> results = sm_sor_repository.findBySurveyExecutionIdAndSessionId(
                         surveyExecution.getSurveyExecutionId(), sessionId);
 
-                boolean allCompleted = videos.stream()
-                        .allMatch(video -> Integer.parseInt(video.getProgress()) >= 100);
+                if (!results.isEmpty()) {
+                    for (SurveyOwnResult result : results) {
+                        Optional<SurveyOwnAnswer> answerOpt = sm_soa_repository.findById(result.getSurveyAnswerId());
+                        if (answerOpt.isEmpty() ||
+                                (answerOpt.get().getAnswerData() == null && answerOpt.get().getScore() == null)) {
+                            isSurveyCompleted = false;
+                            break;
+                        }
+                    }
+                } else {
+                    isSurveyCompleted = false;
+                }
+
+                boolean allCompleted = true;
+                for (SM_UOSV_Projection video : videos) {
+                    if (Integer.parseInt(video.getProgress()) < 100) {
+                        allCompleted = false;
+                        break;
+                    }
+                }
 
                 Optional<OfferedSubjects> offeredSubjectOpt = sm_os_repository.findById(offeredSubjectsId);
-                String subjectName = "Unknown Subject";
 
+                String subjectName = "Unknown Subject";
                 if (offeredSubjectOpt.isPresent()) {
                     OfferedSubjects offeredSubject = offeredSubjectOpt.get();
 
-                    SM_S_Projection subject = sm_s_repository.findBySubjectId(offeredSubject.getSubjectId());
+                    SM_S_Projection subject = sm_s_repository.findBySubjectId(
+                            offeredSubject.getSubjectId());
                     if (subject != null) {
                         subjectName = subject.getSubjectName();
                     }
@@ -270,9 +310,23 @@ public class SM_Controller {
 
             if (!surveyExecutions.isEmpty()) {
                 for (SurveyExecution surveyExecution : surveyExecutions) {
-                    // 설문 완료 여부 확인
-                    boolean isSurveyCompleted = sm_sor_repository.existsBySurveyExecutionIdAndSessionId(
+                    boolean isSurveyCompleted = true;
+                    List<SurveyOwnResult> results = sm_sor_repository.findBySurveyExecutionIdAndSessionId(
                             surveyExecution.getSurveyExecutionId(), sessionId);
+
+                    if (!results.isEmpty()) {
+                        for (SurveyOwnResult result : results) {
+                            Optional<SurveyOwnAnswer> answerOpt = sm_soa_repository
+                                    .findById(result.getSurveyAnswerId());
+                            if (answerOpt.isEmpty() ||
+                                    (answerOpt.get().getAnswerData() == null && answerOpt.get().getScore() == null)) {
+                                isSurveyCompleted = false;
+                                break;
+                            }
+                        }
+                    } else {
+                        isSurveyCompleted = false;
+                    }
 
                     String courseApproval = "F";
                     for (SM_UOC_Projection userCourse : userCourses) {
@@ -285,7 +339,6 @@ public class SM_Controller {
                     String courseStartDate = course.getCourseStartDate();
                     String courseEndDate = course.getCourseEndDate();
 
-                    // 중간 날짜 계산
                     LocalDate midDate = null;
                     if (courseStartDate != null && courseEndDate != null) {
                         LocalDate startDate = LocalDate.parse(courseStartDate.substring(0, 8),
@@ -295,23 +348,18 @@ public class SM_Controller {
                         midDate = startDate.plusDays((ChronoUnit.DAYS.between(startDate, endDate)) / 2);
                     }
 
-                    // 설문 가능 여부 결정
                     String surveyStatus = isSurveyCompleted
-                            ? "F" // 설문이 완료된 경우
+                            ? "F"
                             : ("F".equals(courseApproval) && midDate != null
                                     && today.compareTo(midDate.format(DateTimeFormatter.ofPattern("yyyyMMdd"))) >= 0)
-                                            ? "T" // 과정 승인 "F"이며, 중간 날짜 이후 설문 가능
-                                            : "F"; // 기본 설문 불가능
-
-                    String formattedCourseEndDate = courseEndDate != null ? convertTo8DigitDate(courseEndDate) : null;
-                    String formattedCourseStartDate = courseStartDate != null ? convertTo8DigitDate(courseStartDate)
-                            : null;
+                                            ? "T"
+                                            : "F";
 
                     courseData.put("courseId", course.getCourseId());
                     courseData.put("courseTitle", course.getCourseTitle());
-                    courseData.put("courseStartDate", formattedCourseStartDate);
+                    courseData.put("courseStartDate", convertTo8DigitDate(courseStartDate));
                     courseData.put("courseMidDate", midDate);
-                    courseData.put("courseEndDate", formattedCourseEndDate);
+                    courseData.put("courseEndDate", convertTo8DigitDate(courseEndDate));
                     courseData.put("courseApproval", courseApproval);
                     courseData.put("surveyStatus", surveyStatus);
                     courseData.put("surveyExecutionId", surveyExecution.getSurveyExecutionId());
@@ -326,35 +374,54 @@ public class SM_Controller {
         Map<String, List<SM_UOSV_Projection>> groupedVideos = new HashMap<>();
 
         for (SM_UOSV_Projection video : userVideos) {
-            groupedVideos.computeIfAbsent(video.getUosvOfferedSubjectsId(), k -> new ArrayList<>()).add(video);
+            if (!groupedVideos.containsKey(video.getUosvOfferedSubjectsId())) {
+                groupedVideos.put(video.getUosvOfferedSubjectsId(), new ArrayList<>());
+            }
+            groupedVideos.get(video.getUosvOfferedSubjectsId()).add(video);
         }
 
         for (Map.Entry<String, List<SM_UOSV_Projection>> entry : groupedVideos.entrySet()) {
             String offeredSubjectsId = entry.getKey();
             List<SM_UOSV_Projection> videos = entry.getValue();
 
-            // SurveyExecution 확인
             Optional<SurveyExecution> surveyExecutionOpt = sm_se_repository.findByOfferedSubjectsId(offeredSubjectsId);
 
             if (surveyExecutionOpt.isPresent()) {
                 SurveyExecution surveyExecution = surveyExecutionOpt.get();
+                boolean isSurveyCompleted = true;
 
-                // 설문 완료 여부 확인
-                boolean isSurveyCompleted = sm_sor_repository.existsBySurveyExecutionIdAndSessionId(
+                List<SurveyOwnResult> results = sm_sor_repository.findBySurveyExecutionIdAndSessionId(
                         surveyExecution.getSurveyExecutionId(), sessionId);
 
-                boolean allCompleted = videos.stream()
-                        .allMatch(video -> Integer.parseInt(video.getProgress()) >= 100);
+                if (!results.isEmpty()) {
+                    for (SurveyOwnResult result : results) {
+                        Optional<SurveyOwnAnswer> answerOpt = sm_soa_repository.findById(result.getSurveyAnswerId());
+                        if (answerOpt.isEmpty() ||
+                                (answerOpt.get().getAnswerData() == null && answerOpt.get().getScore() == null)) {
+                            isSurveyCompleted = false;
+                            break;
+                        }
+                    }
+                } else {
+                    isSurveyCompleted = false;
+                }
 
-                // OfferedSubjects 조회
+                boolean allCompleted = true;
+                for (SM_UOSV_Projection video : videos) {
+                    if (Integer.parseInt(video.getProgress()) < 100) {
+                        allCompleted = false;
+                        break;
+                    }
+                }
+
                 Optional<OfferedSubjects> offeredSubjectOpt = sm_os_repository.findById(offeredSubjectsId);
 
-                String subjectName = "Unknown Subject"; // 기본값 설정
+                String subjectName = "Unknown Subject";
                 if (offeredSubjectOpt.isPresent()) {
                     OfferedSubjects offeredSubject = offeredSubjectOpt.get();
 
-                    // Subject 이름 조회
-                    SM_S_Projection subject = sm_s_repository.findBySubjectId(offeredSubject.getSubjectId());
+                    SM_S_Projection subject = sm_s_repository.findBySubjectId(
+                            offeredSubject.getSubjectId());
                     if (subject != null) {
                         subjectName = subject.getSubjectName();
                     }
@@ -380,55 +447,153 @@ public class SM_Controller {
     }
 
     @GetMapping("/survey/questions")
-    @Operation(summary = "만족도 조사 질문 조회", description = "과정 또는 과목에 대한 만족도 조사 질문을 반환")
-    public List<SM_SQ_Projection> getSurveyQuestions(
+    @Operation(summary = "만족도 조사 질문 조회", description = "SurveyExecution ID를 기준으로 질문을 반환하고 설문 유형을 판별합니다.")
+    public ResponseEntity<?> getSurveyQuestions(
             @RequestParam String surveyExecutionId,
             @RequestParam(required = false) String courseId,
             @RequestParam(required = false) String offeredSubjectsId) {
+        try {
+            System.out.println("GET /survey/questions called");
+            System.out.println("surveyExecutionId: " + surveyExecutionId);
+            System.out.println("courseId: " + courseId);
+            System.out.println("offeredSubjectsId: " + offeredSubjectsId);
 
-        // 과정인지 과목인지 판단(만약 둘다 들어오면 과목으로 우선처리리)
-        if (offeredSubjectsId != null) {
-            return sm_sq_repository.findBySurveyCategory("subject");
-        } else if (courseId != null) {
-            return sm_sq_repository.findBySurveyCategory("course");
-        } else {
-            throw new IllegalArgumentException("courseId 또는 offeredSubjectsId 중 하나를 입력");
+            // SurveyExecution 조회
+            Optional<SurveyExecution> executionOpt = sm_se_repository.findById(surveyExecutionId);
+            if (executionOpt.isEmpty()) {
+                System.out.println("SurveyExecution not found for ID: " + surveyExecutionId);
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body("유효하지 않은 SurveyExecution ID입니다.");
+            }
+
+            SurveyExecution execution = executionOpt.get();
+            System.out.println("SurveyExecution found: " + execution);
+
+            // 설문 유형 판별
+            String surveyType;
+            if (offeredSubjectsId != null) {
+                surveyType = "subject"; // 과목 설문조사
+            } else if (courseId != null) {
+                surveyType = "course"; // 과정 설문조사
+            } else {
+                if (execution.getOfferedSubjectsId() != null) {
+                    surveyType = "subject";
+                } else if (execution.getCourseId() != null) {
+                    surveyType = "course";
+                } else {
+                    System.out.println("SurveyExecution에 과정 또는 과목 정보가 없습니다.");
+                    return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                            .body("SurveyExecution에 과정 또는 과목 정보가 없습니다.");
+                }
+            }
+            System.out.println("Survey type determined: " + surveyType);
+
+            // 질문 조회
+            List<SurveyQuestion> questions = sm_sq2_repository.findBySurveyCategory(surveyType);
+            if (questions.isEmpty()) {
+                System.out.println("No questions found for survey type: " + surveyType);
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body("등록된 질문이 없습니다.");
+            }
+            System.out.println("Questions retrieved: " + questions.size());
+
+            // SurveyAnswerId 조회 및 매핑
+            List<Map<String, Object>> questionData = new ArrayList<>();
+            for (SurveyQuestion question : questions) {
+                System.out.println("Processing question: " + question.getSurveyQuestionId());
+                Optional<SurveyOwnAnswer> answerOpt = sm_soa_repository
+                        .findBySurveyQuestionId(question.getSurveyQuestionId());
+
+                Map<String, Object> questionMap = new HashMap<>();
+                questionMap.put("surveyQuestionId", question.getSurveyQuestionId());
+                questionMap.put("questionData", question.getQuestionData());
+                questionMap.put("answerCategory", question.getAnswerCategory());
+                questionMap.put("surveyAnswerId", answerOpt.map(SurveyOwnAnswer::getSurveyAnswerId).orElse(null));
+
+                System.out.println("Mapped question data: " + questionMap);
+                questionData.add(questionMap);
+            }
+
+            // 결과 반환
+            Map<String, Object> response = new HashMap<>();
+            response.put("surveyType", surveyType);
+            response.put("questions", questionData);
+
+            System.out.println("Final response: " + response);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            System.out.println("Exception occurred: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("오류 발생: " + e.getMessage());
         }
     }
 
-    @Operation(summary = "만족도 조사 답변 제출", description = "5지선다 및 서술형 답변을 저장합니다.")
-    @PostMapping("survey/submit")
-    public ResponseEntity<String> submitSurveyAnswers(@RequestBody List<SM_Survey_DTO> answers) {
+    @PostMapping("/survey/submit")
+    public ResponseEntity<?> submitSurveyAnswers(@RequestBody List<SM_Survey_DTO> answers) {
         UsernamePasswordAuthenticationToken auth = (UsernamePasswordAuthenticationToken) SecurityContextHolder
                 .getContext().getAuthentication();
-        // 유저 세션아이디 보안 컨텍스트에서 가져오기
         String sessionId = auth.getPrincipal().toString();
-        for (SM_Survey_DTO answerDTO : answers) {
-            // SurveyOwnAnswer 저장
-            SurveyOwnAnswer answer = new SurveyOwnAnswer();
-            answer.setSurveyQuestionId(answerDTO.getSurveyQuestionId());
 
-            // 5지선다 점수 처리
-            if (answerDTO.getScore() != null) {
-                answer.setScore(answerDTO.getScore());
+        try {
+            if (answers.isEmpty()) {
+                return ResponseEntity.badRequest().body("답변 리스트가 비어 있습니다.");
             }
 
-            // 서술형 답변 처리
-            if (answerDTO.getAnswerData() != null) {
-                answer.setAnswerData(answerDTO.getAnswerData());
+            String surveyExecutionId = answers.get(0).getSurveyExecutionId();
+            Optional<SurveyExecution> executionOpt = sm_se_repository.findById(surveyExecutionId);
+
+            if (executionOpt.isEmpty()) {
+                return ResponseEntity.badRequest().body("유효하지 않은 SurveyExecution ID: " + surveyExecutionId);
             }
 
-            sm_soa_repository.save(answer);
+            for (SM_Survey_DTO answerDTO : answers) {
+                System.out.println("Processing answer: " + answerDTO);
 
-            // SurveyOwnResult 저장
-            SurveyOwnResult result = new SurveyOwnResult();
-            result.setSurveyExecutionId(answerDTO.getSurveyExecutionId());
-            result.setSessionId(sessionId);
-            result.setSurveyQuestionId(answerDTO.getSurveyQuestionId());
-            result.setSurveyAnswerId(answer.getSurveyAnswerId());
+                // SurveyQuestion 유효성 확인
+                Optional<SurveyQuestion> questionOpt = sm_sq_repository.findById(answerDTO.getSurveyQuestionId());
+                if (questionOpt.isEmpty()) {
+                    return ResponseEntity.badRequest()
+                            .body("유효하지 않은 SurveyQuestion ID: " + answerDTO.getSurveyQuestionId());
+                }
 
-            sm_sor_repository.save(result);
+                // `score` 또는 `answerData`가 하나라도 있어야 함
+                if (answerDTO.getScore() == null && answerDTO.getAnswerData() == null) {
+                    return ResponseEntity.badRequest()
+                            .body("점수 또는 답변 데이터가 비어 있습니다: " + answerDTO.getSurveyQuestionId());
+                }
+
+                // SurveyOwnAnswer 존재 확인
+                Optional<SurveyOwnAnswer> existingAnswerOpt = sm_soa_repository
+                        .findBySurveyAnswerId(answerDTO.getSurveyAnswerId());
+                if (existingAnswerOpt.isPresent()) {
+                    // 기존 레코드 업데이트
+                    SurveyOwnAnswer existingAnswer = existingAnswerOpt.get();
+                    existingAnswer.setAnswerData(answerDTO.getAnswerData());
+                    existingAnswer.setScore(answerDTO.getScore());
+                    sm_soa_repository.save(existingAnswer);
+                } else {
+                    return ResponseEntity.badRequest()
+                            .body("SurveyAnswerId에 해당하는 답변이 존재하지 않습니다: " + answerDTO.getSurveyAnswerId());
+                }
+
+            }
+
+            // 설문 완료 상태 확인
+            List<SurveyOwnResult> results = sm_sor_repository.findBySurveyExecutionIdAndSessionId(surveyExecutionId,
+                    sessionId);
+
+            boolean isSurveyCompleted = true;
+            for (SurveyOwnResult result : results) {
+                Optional<SurveyOwnAnswer> answerOpt = sm_soa_repository.findById(result.getSurveyAnswerId());
+                if (answerOpt.isEmpty()
+                        || (answerOpt.get().getAnswerData() == null && answerOpt.get().getScore() == null)) {
+                    isSurveyCompleted = false;
+                    break;
+                }
+            }
+
+            String message = isSurveyCompleted ? "설문이 완료되었습니다." : "설문이 저장되었으나 모든 질문에 대한 답변이 완료되지 않았습니다.";
+            return ResponseEntity.ok(message);
+
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("설문 저장 중 오류 발생: " + e.getMessage());
         }
-        return ResponseEntity.ok("제출!");
     }
 }

@@ -30,6 +30,7 @@ import com.dev.restLms.entity.FileInfo;
 import com.dev.restLms.entity.OfferedSubjects;
 import com.dev.restLms.entity.Subject;
 import com.dev.restLms.entity.SubjectOwnVideo;
+import com.dev.restLms.entity.UserOwnAssignment;
 import com.dev.restLms.entity.UserOwnSubjectVideo;
 import com.dev.restLms.entity.Video;
 import com.dev.restLms.sechan.teacherVideo.repository.TV_C_Repository;
@@ -39,6 +40,7 @@ import com.dev.restLms.sechan.teacherVideo.repository.TV_SOV2_Repository;
 import com.dev.restLms.sechan.teacherVideo.repository.TV_SOV3_Repository;
 import com.dev.restLms.sechan.teacherVideo.repository.TV_SOV_Repository;
 import com.dev.restLms.sechan.teacherVideo.repository.TV_S_Repository;
+import com.dev.restLms.sechan.teacherVideo.repository.TV_UOA_Repository;
 import com.dev.restLms.sechan.teacherVideo.repository.TV_UOSV_Repository;
 import com.dev.restLms.sechan.teacherVideo.repository.TV_V_Repository;
 
@@ -76,6 +78,9 @@ public class TV_Controller {
 
     @Autowired
     private TV_UOSV_Repository tv_uosv_repository;
+
+    @Autowired
+    private TV_UOA_Repository tv_uoa_repository;
 
     private static final String ROOT_DIR = "src/main/resources/static/";
     private static final String UPLOAD_DIR = "SubjectVideo/";
@@ -262,10 +267,12 @@ public class TV_Controller {
             @RequestPart("videoData") Map<String, Object> videoData,
             @RequestPart("file") MultipartFile file) {
         try {
+            // 파일 크기 검증
             if (file.getSize() > MAX_FILE_SIZE) {
                 return ResponseEntity.badRequest().body("파일 크기가 제한을 초과했습니다.");
             }
 
+            // 로그인한 강사의 세션 ID 가져오기
             UsernamePasswordAuthenticationToken auth = (UsernamePasswordAuthenticationToken) SecurityContextHolder
                     .getContext().getAuthentication();
             String teacherSessionId = auth.getPrincipal().toString();
@@ -275,7 +282,7 @@ public class TV_Controller {
             String videoTitle = (String) videoData.get("videoTitle");
             String videoSortIndex = (String) videoData.get("videoSortIndex");
 
-            // 유튜브 ID 추출 및 영상 길이 가져오기
+            // 유튜브 ID 및 영상 길이 추출
             String youtubeId = extractYoutubeId(videoLink);
             int max = getYoutubeVideoDuration(youtubeId);
             if (max > 3)
@@ -287,6 +294,7 @@ public class TV_Controller {
             String uniqueFileName = (String) fileSaveResult.get("uniqueFileName");
             String filePath = path.toString().substring(0, path.toString().lastIndexOf("\\") + 1);
             String fileNo = UUID.randomUUID().toString();
+
             FileInfo fileInfo = FileInfo.builder()
                     .fileNo(fileNo)
                     .fileSize(Long.toString(file.getSize()))
@@ -296,10 +304,9 @@ public class TV_Controller {
                     .uploadDt(LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss")))
                     .uploaderSessionId(teacherSessionId)
                     .build();
-
             fileRepo.save(fileInfo);
 
-            // 1. Video 엔티티 저장
+            // Video 엔티티 저장
             Video video = new Video();
             video.setVideoTitle(videoTitle);
             video.setVideoLink(youtubeId);
@@ -307,32 +314,38 @@ public class TV_Controller {
             video.setVideoImg(fileNo);
             tv_v_repository.save(video);
 
-            // 2. SubjectOwnVideo 엔티티 저장
+            // SubjectOwnVideo 엔티티 저장
             SubjectOwnVideo subjectOwnVideo = new SubjectOwnVideo();
             subjectOwnVideo.setSovOfferedSubjectsId(offeredSubjectsId);
             subjectOwnVideo.setSovVideoId(video.getVideoId());
             subjectOwnVideo.setVideoSortIndex(videoSortIndex);
             tv_sov_repository.save(subjectOwnVideo);
 
-            // 3. UserOwnSubjectVideo 업데이트 - 이미 수강 중인 사용자들에게 새로운 영상 추가
-            List<UserOwnSubjectVideo> userVideos = tv_uosv_repository.findByUosvOfferedSubjectsId(offeredSubjectsId);
+            // 모든 수강 중인 사용자 가져오기
+            List<UserOwnAssignment> enrolledUsers = tv_uoa_repository.findByOfferedSubjectsIdAndSubjectAcceptCategoryIn(
+                    offeredSubjectsId, List.of("T", "F"));
 
-            // 기존 episodeId를 리스트로 수집
-            List<String> existingEpisodeIds = new ArrayList<>();
-            for (UserOwnSubjectVideo userVideo : userVideos) {
-                String episodeId = userVideo.getUosvEpisodeId();
-                if (!existingEpisodeIds.contains(episodeId)) {
-                    existingEpisodeIds.add(episodeId);
-                }
-            }
+            // 기존 UserOwnSubjectVideo 데이터 가져오기
+            List<UserOwnSubjectVideo> existingUserVideos = tv_uosv_repository
+                    .findByUosvOfferedSubjectsId(offeredSubjectsId);
 
+            // 기존 데이터에서 episodeId 수집
+            List<String> existingEpisodeIds = existingUserVideos.stream()
+                    .map(UserOwnSubjectVideo::getUosvEpisodeId)
+                    .distinct()
+                    .toList();
+
+            // 새롭게 추가된 영상 ID 가져오기
             String newEpisodeId = subjectOwnVideo.getEpisodeId();
 
-            // 새로운 영상이 기존 사용자 데이터에 없는 경우 추가
-            if (!existingEpisodeIds.contains(newEpisodeId)) {
-                for (UserOwnSubjectVideo userVideo : userVideos) {
+            // 각 사용자에 대해 새로운 영상 추가
+            for (UserOwnAssignment userAssignment : enrolledUsers) {
+                String sessionId = userAssignment.getUserSessionId();
+
+                // 새로운 영상이 없는 경우 추가
+                if (!existingEpisodeIds.contains(newEpisodeId)) {
                     UserOwnSubjectVideo newUserVideo = new UserOwnSubjectVideo();
-                    newUserVideo.setUosvSessionId(userVideo.getUosvSessionId());
+                    newUserVideo.setUosvSessionId(sessionId);
                     newUserVideo.setUosvEpisodeId(newEpisodeId);
                     newUserVideo.setUosvOfferedSubjectsId(offeredSubjectsId);
                     newUserVideo.setProgress("0");
