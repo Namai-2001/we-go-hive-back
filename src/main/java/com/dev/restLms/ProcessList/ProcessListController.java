@@ -431,7 +431,7 @@ public class ProcessListController {
         return ResponseEntity.ok().body(response);
     }
 
-    @PostMapping("/register")
+    @PostMapping("/registerCourse")
     public ResponseEntity<?> registerCourse(
         @RequestParam String courseId
     ){
@@ -466,14 +466,19 @@ public class ProcessListController {
                         }
 
                         List<ProcessListUserOwnCourse> findUserCourses = processListUserOwnCourseRepository.findBySessionId(sessionId);
-                        boolean userCoursesCheck = false;
-                        for(ProcessListUserOwnCourse findUserCourse : findUserCourses) {
-                            if(findUserCourse.getCourseApproval().equals("T")){
-                                userCoursesCheck = true;
-                            }else if(findUserCourse.getCourseApproval().equals("F")){
-                                userCoursesCheck = false;
-                                break;
+                        boolean userCoursesCheck = true;
+
+                        if(!findUserCourses.isEmpty()){
+
+                            for(ProcessListUserOwnCourse findUserCourse : findUserCourses) {
+                                if(findUserCourse.getCourseApproval().equals("T")){
+                                    userCoursesCheck = true;
+                                }else if(findUserCourse.getCourseApproval().equals("F")){
+                                    userCoursesCheck = false;
+                                    break;
+                                }
                             }
+
                         }
 
                         if(userCoursesCheck){
@@ -541,17 +546,17 @@ public class ProcessListController {
 
                             return ResponseEntity.ok().body(findDate.get().getCourseTitle()+" 과정 수강 신청 완료");
 
+                        }else{
+                            return ResponseEntity.status(HttpStatus.CONFLICT).body("다른 과정을 수강중입니다.");
                         }
-                        
+                    }else{
+                        return ResponseEntity.status(HttpStatus.CONFLICT).body("해당 과정이 존재하지 않습니다.");
                     }
-
                 }else{
                     return ResponseEntity.status(HttpStatus.CONFLICT).body("수강신청 권한이 없습니다.");
                 }
-
             }
             return ResponseEntity.status(HttpStatus.CONFLICT).body("권한이 없습니다.");
-            
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body("오류 발생 : " + e.getMessage());
         }
