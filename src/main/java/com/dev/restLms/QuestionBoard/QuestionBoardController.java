@@ -164,6 +164,7 @@ public class QuestionBoardController {
     
         Map<String, Object> response = new HashMap<>();
         response.put("posts", resultList);
+        response.put("boardId", questionBoard.get().getBoardId());
         response.put("currentPage", questionBoardPosts.getNumber());
         response.put("totalItems", questionBoardPosts.getTotalElements());
         response.put("totalPages", questionBoardPosts.getTotalPages());

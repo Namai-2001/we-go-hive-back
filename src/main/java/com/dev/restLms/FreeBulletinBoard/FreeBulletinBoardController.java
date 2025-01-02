@@ -69,6 +69,7 @@ public class FreeBulletinBoardController {
             
             Map<String, Object> response = new HashMap<>();
             response.put("posts", resultList);
+            response.put("boardId", findBoardId.get().getBoardId());
             response.put("currentPage", findBoardPosts.getNumber());
             response.put("totalItems", findBoardPosts.getTotalElements());
             response.put("totalPages", findBoardPosts.getTotalPages());
