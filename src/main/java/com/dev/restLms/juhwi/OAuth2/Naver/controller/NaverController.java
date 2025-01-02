@@ -127,7 +127,7 @@ public class NaverController {
         User user = userSelect.get();
         LoginRequest req = LoginRequest.builder().userId(user.getUserId()).userPw(user.getUserPw()).build();
         ResponseEntity<?> responseEntity = authController.authenticateUser(req);
-        return ResponseEntity.ok(responseEntity);
+        return responseEntity;
     }
 
     // @GetMapping("/logout")
@@ -179,7 +179,8 @@ public class NaverController {
 
 
         // 연결 끊기
-        ResponseEntity<?> logoutRes = logout(tokenBody.access_token);
+        // ResponseEntity<?> logoutRes = logout(tokenBody.access_token);
+        logout(tokenBody.access_token);
 
 
         // 결과
