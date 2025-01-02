@@ -110,7 +110,7 @@ public class TeacherAssignmentController {
       PursuitPermissionGroup ppg = permisionGroupRepository
           .findByPermissionGroupUuid(uopsOpt.get().getPermissionGroupUuid2());
 
-      if (ppg.getPermissionName().equals("OFFICER")) {
+      if (ppg.getPermissionName().equals("OFFICER")||ppg.getPermissionName().equals("INDIV_OFFICER")) {
 
         List<PursuitCourse> pursuitCourses = courseRepository.findBySessionId(userSessionId);
         if (pursuitCourses == null || pursuitCourses.isEmpty()) {
@@ -151,70 +151,6 @@ public class TeacherAssignmentController {
         response.put("totalItems", totalItems);
         response.put("totalPages", totalPages);
 
-        return ResponseEntity.ok(response);
-      } else {
-        return ResponseEntity.status(403).body("접근 권한이 없습니다.");
-      }
-    } catch (Exception e) {
-      return ResponseEntity.status(500).body("서버 오류가 발생했습니다.");
-    }
-  }
-
-  @GetMapping("/courses/responsible/individual")
-  @Operation(summary = "담당한 과정 조회", description = "로그인한 책임자가 담당한 과정 목록 조회")
-  public ResponseEntity<?> getCoursesByIndividualOfficer(@RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "8") int size, @RequestParam(required = false) String name) {
-    try {
-      UsernamePasswordAuthenticationToken auth = (UsernamePasswordAuthenticationToken) SecurityContextHolder
-          .getContext().getAuthentication();
-      final String userSessionId = auth.getPrincipal().toString();
-
-      Optional<UserOwnPermissionGroup> uopsOpt = userOwnPermissionGroupRepository.findBySessionId(userSessionId);
-      if (uopsOpt.isEmpty()) {
-        return ResponseEntity.status(403).body("접근 권한이 없습니다.");
-      }
-      PursuitPermissionGroup ppg = permisionGroupRepository
-          .findByPermissionGroupUuid(uopsOpt.get().getPermissionGroupUuid2());
-
-      if (ppg.getPermissionName().equals("INDIV_OFFICER")) {
-
-        List<PursuitCourse> pursuitCourses = courseRepository.findBySessionId(userSessionId);
-        if (pursuitCourses == null || pursuitCourses.isEmpty()) {
-          return ResponseEntity.status(404).body("담당한 과정을 찾을 수 없습니다.");
-        }
-
-        List<Map<String, Object>> courseList = new ArrayList<>();
-        for (PursuitCourse pursuitCourse : pursuitCourses) {
-          if (pursuitCourse == null || !isCourseOngoing(pursuitCourse.getCourseEndDate())) {
-            continue;
-          }
-          boolean shouldAdd = true;
-          if (name != null && !name.trim().isEmpty()) {
-            if (!pursuitCourse.getCourseTitle().contains(name)) {
-              shouldAdd = false;
-            }
-          }
-          
-          if (shouldAdd) {
-            Map<String, Object> courseInfo = new HashMap<>();
-            courseInfo.put("CourseId", pursuitCourse.getCourseId());
-            courseInfo.put("CourseTitle", pursuitCourse.getCourseTitle());
-            courseInfo.put("CourseEndDate", pursuitCourse.getCourseEndDate());
-            courseList.add(courseInfo);
-          }
-        }
-        // 페이징 처리
-        int totalItems = courseList.size();
-        int totalPages = (int) Math.ceil((double) totalItems / size);
-        int start = Math.min(page * size, totalItems);
-        int end = Math.min(start + size, totalItems);
-
-        List<Map<String, Object>> pagedResultList = courseList.subList(start, end);
-
-        Map<String, Object> response = new HashMap<>();
-        response.put("courseList", pagedResultList);
-        response.put("currentPage", page);
-        response.put("totalItems", totalItems);
-        response.put("totalPages", totalPages);
         return ResponseEntity.ok(response);
       } else {
         return ResponseEntity.status(403).body("접근 권한이 없습니다.");
