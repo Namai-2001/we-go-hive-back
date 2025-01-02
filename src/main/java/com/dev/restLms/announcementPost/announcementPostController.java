@@ -365,6 +365,65 @@ public class announcementPostController {
         }
     }
 
+    @GetMapping("/checkAnnouncement")
+    @Operation(summary = "공지사항 수정 화면", description = "공지사항 게시글을 가져옵니다.")
+    public ResponseEntity<?> checkAnnouncement(
+        @RequestParam String postId
+    ) {
+        try {
+
+            UsernamePasswordAuthenticationToken auth = (UsernamePasswordAuthenticationToken) SecurityContextHolder
+                                .getContext().getAuthentication();
+                // 유저 세션아이디 보안 컨텍스트에서 가져오기
+                String sessionId = auth.getPrincipal().toString();
+
+            Optional<UserOwnPermissionGroup> userCheck = announcementPostUserOwnPermissionGroupRepository.findBySessionId(sessionId);
+    
+            if (userCheck.isPresent()) {
+                Optional<announcementPostBoardPost> announcementPost = announcementPostBoardPostRepository.findByPostId(postId);
+    
+                if (!announcementPost.isPresent()) {
+                    return ResponseEntity.status(HttpStatus.CONFLICT).body("해당 공지사항이 없습니다.");
+                }
+    
+                Map<String, Object> post = new HashMap<>();
+                post.put("postSessionId", announcementPost.get().getSessionId());
+                post.put("postId", announcementPost.get().getPostId());
+                post.put("postAuthorNickname", announcementPost.get().getAuthorNickname());
+                post.put("postCreatedDate", announcementPost.get().getCreatedDate());
+                post.put("postTitle", announcementPost.get().getTitle());
+                post.put("postContent", announcementPost.get().getContent());
+                post.put("postIsNotice", announcementPost.get().getIsNotice());
+    
+                Optional<FileInfo> fileinfoOptional = announcementPostFileInfoRepository.findByFileNo(announcementPost.get().getFileNo());
+                if (fileinfoOptional.isPresent()) {
+                    FileInfo fileInfo = fileinfoOptional.get();
+                    post.put("fileNo", fileInfo.getFileNo());
+                    post.put("orgFileNm", fileInfo.getOrgFileNm());
+
+                    // 이미지 표시 URL 생성
+                    String orgFileNm = fileInfo.getOrgFileNm();
+                    if (orgFileNm != null && (orgFileNm.endsWith(".jpg") || orgFileNm.endsWith(".jpeg") || orgFileNm.endsWith(".png"))) {
+                        String imageUrl = fileInfo.getFileNo(); // 이미지 URL
+                        post.put("imageUrl", imageUrl); // 이미지 URL 추가
+                    }else{
+                        // 파일 다운로드 URL 생성
+                        String fileDownloadUrl = fileInfo.getFileNo(); // 다운로드 API URL
+                        post.put("fileDownloadUrl", fileDownloadUrl); // 다운로드 링크 추가
+                    }
+                    
+                }
+    
+                return ResponseEntity.ok().body(post);
+            }
+    
+            return ResponseEntity.status(HttpStatus.CONFLICT).body("로그인 후 접근 가능");
+            
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body("오류 발생: " + e.getMessage());
+        }
+    }
+
     // 이미지 반환 
     @GetMapping("/images/{fileNo:.+}")
     public ResponseEntity<Resource> getImage(@PathVariable String fileNo) {

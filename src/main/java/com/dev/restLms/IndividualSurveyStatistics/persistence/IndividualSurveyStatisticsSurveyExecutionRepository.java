@@ -9,4 +9,7 @@ import java.util.List;
 
 public interface IndividualSurveyStatisticsSurveyExecutionRepository extends JpaRepository<SurveyExecution, String> {
     List<SurveyExecution> findByOfferedSubjectsIdAndSessionId(String offeredSubjectsId, String sessionId);
+
+    List<SurveyExecution> findBySessionId(String sessionId);
+
 }

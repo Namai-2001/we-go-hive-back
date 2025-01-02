@@ -72,7 +72,7 @@ public class QuestionBoardController {
         // 해당 과목의 게시글이 있는지 확인
         Optional<QuestionBoard> questionBoard = questionBoardRepository.findByOfferedSubjectsId(offeredSubjectsId);
 
-        if(userOwnPermissionGroup.isPresent()||questionBoard.isPresent()){
+        if(userOwnPermissionGroup.isPresent() && questionBoard.isPresent()){
 
             String permissionId = userOwnPermissionGroup.get().getPermissionGroupUuid2();
 

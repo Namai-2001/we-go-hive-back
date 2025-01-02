@@ -49,7 +49,7 @@ public class ProcessPursuitController {
         
         for (Course course : courses) {
 
-            if(Long.parseLong(course.getEnrollEndDate()) >= Long.parseLong(LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"))) && !course.getCourseTitle().equals("개별과목")){
+            if(Long.parseLong(course.getEnrollEndDate()) >= Long.parseLong(LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"))) && !course.getCourseId().equals("individual-subjects")){
 
                 // 수강자 수 조회
                 List<ProcessPursuitUserOwnCourse> userCount = processPursuitUserOwnCourseRepository.findByCourseId(course.getCourseId());
@@ -77,6 +77,14 @@ public class ProcessPursuitController {
 
             }
             
+        }
+
+        if(resultList.isEmpty()){
+            Map<String, Object> ramdomCourse = new HashMap<>();
+            ramdomCourse.put("ramdomCourse", null);
+            ramdomCourse.put("Courses", resultList);
+
+            return ResponseEntity.ok().body(ramdomCourse);
         }
 
         Random random = new Random();

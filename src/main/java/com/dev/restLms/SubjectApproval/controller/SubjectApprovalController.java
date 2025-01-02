@@ -152,6 +152,7 @@ public class SubjectApprovalController {
                     if(findTeacherSessionId.isPresent()){
 
                         CourseOwnSubject courseOwnSubject = findSubject.get();
+                        courseOwnSubject.setOfficerSessionId(sessionId);
                         courseOwnSubject.setSubjectApproval("T");
     
                         subjectApprovalCourseOwnSubjectRepository.save(courseOwnSubject);

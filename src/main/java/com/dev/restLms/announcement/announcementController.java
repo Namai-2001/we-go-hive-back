@@ -124,6 +124,15 @@ public class announcementController {
                 }
             }
         }
+
+        if(noticeImgs.isEmpty()){
+
+            Map<String, Object> img = new HashMap<>();
+            img.put("imageUrl", "fde433e6-1bd6-4eca-ad7a-6a94392b6f22"); // 준비 중 이미지의 실제 URL로 변경
+            img.put("postId", null); // 포스트 ID는 null로 설정
+            noticeImgs.add(img);
+
+        }
     
         // 결과에 페이징 정보 추가
         Map<String, Object> response = new HashMap<>();

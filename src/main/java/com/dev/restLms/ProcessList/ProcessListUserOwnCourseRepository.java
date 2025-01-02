@@ -14,4 +14,5 @@ public interface ProcessListUserOwnCourseRepository extends JpaRepository<UserOw
     List<ProcessListUserOwnCourse> findByCourseId(String courseId);
     Optional<ProcessListUserOwnCourse> findByCourseIdAndSessionId(String courseId, String sessionId);
     List<ProcessListUserOwnCourse> findBySessionId(String sessionId);
+    // List<UserOwnCourse> findByCourseIdAndOfficerSessionId(String courseId, String officerSessionId);
 }

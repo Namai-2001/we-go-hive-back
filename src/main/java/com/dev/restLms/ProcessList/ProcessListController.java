@@ -79,7 +79,7 @@ public class ProcessListController {
     @Autowired
     private ProcessListFileinfoReposutory processListFileinfoReposutory;
 
-    // 이미지 반환 
+    // 이미지 반환
     @GetMapping("/images/{fileNo:.+}")
     public ResponseEntity<Resource> getImage(@PathVariable String fileNo) {
         try {
@@ -120,7 +120,7 @@ public class ProcessListController {
 
         for (Course course : coursePage) {
 
-            if (!course.getCourseTitle().equals("개별과목")) {
+            if (!course.getCourseId().equals("individual-subjects")) {
 
                 // 수강자 수 조회
                 List<ProcessListUserOwnCourse> userCount = processListUserOwnCourseRepository
@@ -159,6 +159,220 @@ public class ProcessListController {
         response.put("totalPages", coursePage.getTotalPages());
 
         return ResponseEntity.ok().body(response);
+    }
+
+    @PostMapping("/searchDueCourse")
+    @Operation(summary = "수강 신청 예정 과정 검색")
+    public ResponseEntity<?> searchDueCourse(
+            @RequestParam String courseTitle,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+
+        String excludedCourseId = "individual-subjects";
+        List<Course> courseLists = processListCourseRepository
+                .findByCourseIdNotAndCourseTitleContaining(excludedCourseId, courseTitle,
+                        Sort.by(Sort.Direction.ASC, "courseTitle"));
+
+        // 결과를 저장할 리스트
+        List<Map<String, Object>> resultList = new ArrayList<>();
+
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
+        LocalDateTime nowDate = LocalDateTime.now();
+
+        for (Course course : courseLists) {
+
+            LocalDateTime courseDate = LocalDateTime.parse(course.getEnrollStartDate(), formatter);
+            if (courseDate.isAfter(nowDate)) {
+
+                // 수강자 수 조회
+                List<ProcessListUserOwnCourse> userCount = processListUserOwnCourseRepository
+                        .findByCourseId(course.getCourseId());
+                int studentCount = userCount.size();
+
+                // 과정 책임자 정보 조회
+                Optional<ProcessListUser> processListUsers = processListUserRepository
+                        .findBySessionId(course.getSessionId());
+
+                // 각 과정 정보와 수강자 수를 HashMap에 추가
+                HashMap<String, Object> courseMap = new HashMap<>();
+                courseMap.put("courseId", course.getCourseId());
+                courseMap.put("courseTitle", course.getCourseTitle());
+                courseMap.put("courseCapacity", course.getCourseCapacity());
+                courseMap.put("enrollStartDate", course.getEnrollStartDate());
+                courseMap.put("enrollEndDate", course.getEnrollEndDate());
+                courseMap.put("studentCount", studentCount);
+                courseMap.put("courseImg", course.getCourseImg());
+
+                // 책임자 정보 가져오기
+                courseMap.put("courseOfficerSessionId", processListUsers.get().getSessionId());
+                courseMap.put("courseOfficerUserName", processListUsers.get().getUserName());
+
+                // 결과를 리스트에 추가
+                resultList.add(courseMap);
+
+            }
+
+        }
+
+        // 페이징 처리
+        int totalItems = resultList.size();
+        int totalPages = (int) Math.ceil((double) totalItems / size);
+        int start = page * size;
+        int end = Math.min(start + size, totalItems);
+
+        List<Map<String, Object>> pagedResultList = resultList.subList(start, end);
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("officerCourse", pagedResultList);
+        response.put("currentPage", page);
+        response.put("totalItems", totalItems);
+        response.put("totalPages", totalPages);
+
+        return ResponseEntity.ok().body(response);
+
+    }
+
+    @PostMapping("/searchDeadlineCourse")
+    @Operation(summary = "수강 신청 마감 과정 검색")
+    public ResponseEntity<?> searchDeadlineCourse(
+            @RequestParam String courseTitle,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+
+        String excludedCourseId = "individual-subjects";
+        List<Course> courseLists = processListCourseRepository
+                .findByCourseIdNotAndCourseTitleContaining(excludedCourseId, courseTitle,
+                        Sort.by(Sort.Direction.ASC, "courseTitle"));
+
+        // 결과를 저장할 리스트
+        List<Map<String, Object>> resultList = new ArrayList<>();
+
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
+        LocalDateTime nowDate = LocalDateTime.now();
+
+        for (Course course : courseLists) {
+
+            LocalDateTime courseDate = LocalDateTime.parse(course.getEnrollEndDate(), formatter);
+            if (courseDate.isBefore(nowDate)) {
+
+                // 수강자 수 조회
+                List<ProcessListUserOwnCourse> userCount = processListUserOwnCourseRepository
+                        .findByCourseId(course.getCourseId());
+                int studentCount = userCount.size();
+
+                // 과정 책임자 정보 조회
+                Optional<ProcessListUser> processListUsers = processListUserRepository
+                        .findBySessionId(course.getSessionId());
+
+                // 각 과정 정보와 수강자 수를 HashMap에 추가
+                HashMap<String, Object> courseMap = new HashMap<>();
+                courseMap.put("courseId", course.getCourseId());
+                courseMap.put("courseTitle", course.getCourseTitle());
+                courseMap.put("courseCapacity", course.getCourseCapacity());
+                courseMap.put("enrollStartDate", course.getEnrollStartDate());
+                courseMap.put("enrollEndDate", course.getEnrollEndDate());
+                courseMap.put("studentCount", studentCount);
+                courseMap.put("courseImg", course.getCourseImg());
+
+                // 책임자 정보 가져오기
+                courseMap.put("courseOfficerSessionId", processListUsers.get().getSessionId());
+                courseMap.put("courseOfficerUserName", processListUsers.get().getUserName());
+
+                // 결과를 리스트에 추가
+                resultList.add(courseMap);
+
+            }
+
+        }
+
+        // 페이징 처리
+        int totalItems = resultList.size();
+        int totalPages = (int) Math.ceil((double) totalItems / size);
+        int start = page * size;
+        int end = Math.min(start + size, totalItems);
+
+        List<Map<String, Object>> pagedResultList = resultList.subList(start, end);
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("officerCourse", pagedResultList);
+        response.put("currentPage", page);
+        response.put("totalItems", totalItems);
+        response.put("totalPages", totalPages);
+
+        return ResponseEntity.ok().body(response);
+
+    }
+
+    @PostMapping("/searchReceivingCourse")
+    @Operation(summary = "수강 신청 중인 과정 검색")
+    public ResponseEntity<?> searchReceivingCourse(
+            @RequestParam String courseTitle,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+
+        String excludedCourseId = "individual-subjects";
+        List<Course> courseLists = processListCourseRepository
+                .findByCourseIdNotAndCourseTitleContaining(excludedCourseId, courseTitle,
+                        Sort.by(Sort.Direction.ASC, "courseTitle"));
+
+        // 결과를 저장할 리스트
+        List<Map<String, Object>> resultList = new ArrayList<>();
+
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
+        LocalDateTime nowDate = LocalDateTime.now();
+
+        for (Course course : courseLists) {
+
+            LocalDateTime enrollStartDate = LocalDateTime.parse(course.getEnrollStartDate(), formatter);
+            LocalDateTime enrollEndDate = LocalDateTime.parse(course.getEnrollEndDate(), formatter);
+            if (enrollStartDate.isBefore(nowDate) && enrollEndDate.isAfter(nowDate)) {
+
+                // 수강자 수 조회
+                List<ProcessListUserOwnCourse> userCount = processListUserOwnCourseRepository
+                        .findByCourseId(course.getCourseId());
+                int studentCount = userCount.size();
+
+                // 과정 책임자 정보 조회
+                Optional<ProcessListUser> processListUsers = processListUserRepository
+                        .findBySessionId(course.getSessionId());
+
+                // 각 과정 정보와 수강자 수를 HashMap에 추가
+                HashMap<String, Object> courseMap = new HashMap<>();
+                courseMap.put("courseId", course.getCourseId());
+                courseMap.put("courseTitle", course.getCourseTitle());
+                courseMap.put("courseCapacity", course.getCourseCapacity());
+                courseMap.put("enrollStartDate", course.getEnrollStartDate());
+                courseMap.put("enrollEndDate", course.getEnrollEndDate());
+                courseMap.put("studentCount", studentCount);
+                courseMap.put("courseImg", course.getCourseImg());
+
+                // 책임자 정보 가져오기
+                courseMap.put("courseOfficerSessionId", processListUsers.get().getSessionId());
+                courseMap.put("courseOfficerUserName", processListUsers.get().getUserName());
+
+                // 결과를 리스트에 추가
+                resultList.add(courseMap);
+
+            }
+
+        }
+
+        // 페이징 처리
+        int totalItems = resultList.size();
+        int totalPages = (int) Math.ceil((double) totalItems / size);
+        int start = page * size;
+        int end = Math.min(start + size, totalItems);
+
+        List<Map<String, Object>> pagedResultList = resultList.subList(start, end);
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("officerCourse", pagedResultList);
+        response.put("currentPage", page);
+        response.put("totalItems", totalItems);
+        response.put("totalPages", totalPages);
+
+        return ResponseEntity.ok().body(response);
+
     }
 
     @PostMapping("/searchCourse")
@@ -217,138 +431,285 @@ public class ProcessListController {
         return ResponseEntity.ok().body(response);
     }
 
-    @PostMapping("/registerCourse")
-    @Operation(summary = "사용자가 과정 등록", description = "사용자가 과정을 등록합니다.")
-    public ResponseEntity<String> userPutCourse(
-            @RequestParam String courseId,
-            @RequestParam String officerSessionId) {
+    @PostMapping("/register")
+    public ResponseEntity<?> registerCourse(
+        @RequestParam String courseId
+    ){
 
-        UsernamePasswordAuthenticationToken auth = (UsernamePasswordAuthenticationToken) SecurityContextHolder
-                .getContext().getAuthentication();
-        // 유저 세션아이디 보안 컨텍스트에서 가져오기
-        String sessionId = auth.getPrincipal().toString();
+        try {
 
-        // 사용자 권한 그룹에서 사용자 세션 아이디 확인
-        Optional<ProcessListUserOwnPermissionGroup> userPermissionGroup = processListUserOwnPermissionGroupRepository
-                .findBySessionId(sessionId);
+            UsernamePasswordAuthenticationToken auth = (UsernamePasswordAuthenticationToken) SecurityContextHolder
+                    .getContext().getAuthentication();
+            // 유저 세션아이디 보안 컨텍스트에서 가져오기
+            String sessionId = auth.getPrincipal().toString();
 
-        // 사용자의 권한이 있는지 확인
-        if (userPermissionGroup.isPresent()) {
+            Optional<ProcessListUserOwnPermissionGroup> findUserPermission = processListUserOwnPermissionGroupRepository.findBySessionId(sessionId);
 
-            // 권한 아이디 저장
-            String permissionGroupUuid = userPermissionGroup.get().getPermissionGroupUuid2();
+            if(findUserPermission.isPresent()){
 
-            // 권한 그룹에서의 권한 아이디 확인
-            Optional<ProcessListPermissionGroup> userPermissionName = processListPermissionGroupRepository
-                    .findByPermissionGroupUuid(permissionGroupUuid);
+                Optional<ProcessListPermissionGroup> findPermissionName = processListPermissionGroupRepository.findByPermissionGroupUuid(findUserPermission.get().getPermissionGroupUuid2());
 
-            // 권한 그룹에 권한 아이디가 있는지 확인
-            if (userPermissionName.isPresent()) {
+                if(findPermissionName.isPresent() && findPermissionName.get().getPermissionName().equals("STUDENT")){
 
-                // 권한 아이디의 권한 명 저장
-                String permissionName = userPermissionName.get().getPermissionName();
+                    Optional<ProcessListCourse> findDate = processListCourseRepository.findBycourseId(courseId);
 
-                // 사용자의 권한 명이 STUDENT인지 확인
-                if (permissionName.equals("STUDENT")) {
+                    if(findDate.isPresent()){
 
-                    // 해당 과정의 수강신청 날짜가 현재날짜보다 지났거나 아직 되지 않았을 때 수강신청을 할 수 없음
-                    Optional<ProcessListCourse> findCourse = processListCourseRepository.findBycourseId(courseId);
-                    Long nowDate = Long
-                            .parseLong(LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss")));
-                    if (Long.parseLong(findCourse.get().getEnrollEndDate()) < nowDate
-                            || Long.parseLong(findCourse.get().getEnrollStartDate()) > nowDate) {
-                        return ResponseEntity.status(HttpStatus.CONFLICT).body("수강신청 기간이 아닙니다.");
-                    }
-
-                    // 사용자의 과정 목록 확인
-                    List<ProcessListUserOwnCourse> userOwnCourses = processListUserOwnCourseRepository
-                            .findBySessionId(sessionId);
-
-                    // 이미 과정을 듣고 있으면 거짓 없으면 참
-                    boolean userCourses = true;
-                    for (ProcessListUserOwnCourse userOwnCourse : userOwnCourses) {
-                        if (userOwnCourse.getCourseApproval().equals("F")) {
-                            userCourses = false;
-                            break;
-                        } else {
-                            userCourses = true;
+                        Long nowDate = Long.parseLong(LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss")));
+                        if(Long.parseLong(findDate.get().getEnrollStartDate())>nowDate && Long.parseLong(findDate.get().getEnrollEndDate()) < nowDate){
+                            return ResponseEntity.status(HttpStatus.CONFLICT).body("수강신청 기간이 아닙니다");
                         }
-                    }
 
-                    // 듣고 있는 과정이 없을 때 실행
-                    if (userCourses) {
-                        UserOwnCourse postUserOwnCourse = UserOwnCourse.builder()
-                                .sessionId(sessionId)
-                                .courseId(courseId)
-                                .officerSessionId(officerSessionId)
-                                .courseApproval("F")
-                                .build();
-                        processListUserOwnCourseRepository.save(postUserOwnCourse);
+                        List<ProcessListUserOwnCourse> findUsers = processListUserOwnCourseRepository.findByCourseId(courseId);
+                        if(findUsers.size() >= Integer.parseInt(findDate.get().getCourseCapacity())){
+                            return ResponseEntity.status(HttpStatus.CONFLICT).body("수강 신청 인원이 초과되었습니다.");
+                        }
 
-                        // 해당 과정의 과목 목록 확인
-                        List<ProcessListCourseOwnSubject> courseOwnSubjects = processListCourseOwnSubjectRepository
-                                .findByCourseIdAndOfficerSessionId(courseId, findCourse.get().getSessionId());
+                        List<ProcessListUserOwnCourse> findUserCourses = processListUserOwnCourseRepository.findBySessionId(sessionId);
+                        boolean userCoursesCheck = false;
+                        for(ProcessListUserOwnCourse findUserCourse : findUserCourses) {
+                            if(findUserCourse.getCourseApproval().equals("T")){
+                                userCoursesCheck = true;
+                            }else if(findUserCourse.getCourseApproval().equals("F")){
+                                userCoursesCheck = false;
+                                break;
+                            }
+                        }
 
-                        for (ProcessListCourseOwnSubject courseOwnSubject : courseOwnSubjects) {
+                        if(userCoursesCheck){
+                            UserOwnCourse userOwnCourse = UserOwnCourse.builder()
+                            .sessionId(sessionId)
+                            .courseId(courseId)
+                            .officerSessionId(findDate.get().getCourseId())
+                            .courseApproval("F")
+                            .build();
+                            processListUserOwnCourseRepository.save(userOwnCourse);
+                            
+                            List<ProcessListCourseOwnSubject> findCourseSubjects = processListCourseOwnSubjectRepository.findByCourseIdAndOfficerSessionId(courseId, findDate.get().getSessionId());
+                            for(ProcessListCourseOwnSubject findCourseSubject : findCourseSubjects){
 
-                            // 해당 과목이 개설된 과목인지 확인
-                            Optional<ProcessListOfferedSubjects> offeredSubject = processListOfferedSubjectsRepository
-                                    .findBySubjectIdAndOfficerSessionId(courseOwnSubject.getSubjectId(), findCourse.get().getSessionId());
+                                Optional<ProcessListOfferedSubjects> findOfferedSubjectsId = processListOfferedSubjectsRepository.findBySubjectIdAndOfficerSessionIdAndCourseId(findCourseSubject.getSubjectId(), findDate.get().getSessionId(), courseId);
 
-                            if (offeredSubject.isPresent()) {
+                                if(findOfferedSubjectsId.isPresent()){
 
-                                UserOwnAssignment postUserOwnAssignment = UserOwnAssignment.builder()
-                                        .userSessionId(sessionId)
-                                        .offeredSubjectsId(offeredSubject.get().getOfferedSubjectsId())
-                                        .subjectAcceptCategory("F")
-                                        .build();
-                                processListUserOwnAssignmentRepository.save(postUserOwnAssignment);
+                                    UserOwnAssignment userOwnAssignment = UserOwnAssignment.builder()
+                                    .userSessionId(sessionId)
+                                    .offeredSubjectsId(findOfferedSubjectsId.get().getOfferedSubjectsId())
+                                    .subjectAcceptCategory("F")
+                                    .build();
+                                    processListUserOwnAssignmentRepository.save(userOwnAssignment);
 
-                                // 해당 과목의 영상 목록 확인
-                                List<ProcessListSubjectOwnVideo> subjectOwnVideos = processListSubjectOwnVideoRepository
-                                        .findBySovOfferedSubjectsId(offeredSubject.get().getOfferedSubjectsId());
-                                for (ProcessListSubjectOwnVideo subjectOwnVideo : subjectOwnVideos) {
-                                    UserOwnSubjectVideo postUserSubjectOwnVideo = UserOwnSubjectVideo.builder()
+                                    List<ProcessListSubjectOwnVideo> findSubjectVideos = processListSubjectOwnVideoRepository.findBySovOfferedSubjectsId(findOfferedSubjectsId.get().getOfferedSubjectsId());
+
+                                    if(!findSubjectVideos.isEmpty()){
+
+                                        for(ProcessListSubjectOwnVideo findSubjectVideo : findSubjectVideos){
+
+                                            UserOwnSubjectVideo userOwnSubjectVideo = UserOwnSubjectVideo.builder()
                                             .uosvSessionId(sessionId)
-                                            .uosvEpisodeId(subjectOwnVideo.getEpisodeId())
-                                            .uosvOfferedSubjectsId(subjectOwnVideo.getSovOfferedSubjectsId())
+                                            .uosvEpisodeId(findSubjectVideo.getEpisodeId())
+                                            .uosvOfferedSubjectsId(findOfferedSubjectsId.get().getOfferedSubjectsId())
                                             .progress("0")
                                             .uosvFinal("0")
                                             .build();
-                                    processListUserOwnSubjectVideoRepository.save(postUserSubjectOwnVideo);
-                                }
+                                            processListUserOwnSubjectVideoRepository.save(userOwnSubjectVideo);
 
-                                // 해당 과목의 과제가 할당되어 있는지 확인
-                                List<ProcessListAssignment> findAssignments = processListAssignmentRepository.findByOfferedSubjectsId(offeredSubject.get().getOfferedSubjectsId());
+                                        }
 
-                                if(!findAssignments.isEmpty()){
+                                    }
 
-                                    for(ProcessListAssignment findAssignment : findAssignments){
+                                    List<ProcessListAssignment> findAssignments = processListAssignmentRepository.findByOfferedSubjectsId(findOfferedSubjectsId.get().getOfferedSubjectsId());
 
-                                        UserOwnAssignmentEvaluation userOwnAssignmentEvaluation = UserOwnAssignmentEvaluation.builder()
-                                        .uoaeSessionId(sessionId)
-                                        .assignmentId(findAssignment.getAssignmentId())
-                                        .teacherSessionId(findAssignment.getTeacherSessionId())
-                                        .isSubmit("F")
-                                        .build();
+                                    if(!findAssignments.isEmpty()){
 
-                                        processListUserOwnAssignmentEvaluationRepository.save(userOwnAssignmentEvaluation);
+                                        for(ProcessListAssignment findAssignment : findAssignments){
+
+                                            UserOwnAssignmentEvaluation userOwnAssignmentEvaluation = UserOwnAssignmentEvaluation.builder()
+                                            .uoaeSessionId(sessionId)
+                                            .assignmentId(findAssignment.getAssignmentId())
+                                            .teacherSessionId(findAssignment.getTeacherSessionId())
+                                            .build();
+                                            processListUserOwnAssignmentEvaluationRepository.save(userOwnAssignmentEvaluation);
+
+                                        }
 
                                     }
 
                                 }
-
-                            } else {
-                                return ResponseEntity.status(HttpStatus.CONFLICT).body("개설 과목이 아닙니다");
+                                
                             }
+
+                            return ResponseEntity.ok().body(findDate.get().getCourseTitle()+" 과정 수강 신청 완료");
+
                         }
-                        return ResponseEntity.ok().body("수강신청 완료");
+                        
                     }
-                    return ResponseEntity.status(HttpStatus.CONFLICT).body("다른 과정을 듣고 있습니다.");
+
+                }else{
+                    return ResponseEntity.status(HttpStatus.CONFLICT).body("수강신청 권한이 없습니다.");
                 }
-                return ResponseEntity.status(HttpStatus.CONFLICT).body("수강신청 권한이 없습니다.");
+
             }
+            return ResponseEntity.status(HttpStatus.CONFLICT).body("권한이 없습니다.");
+            
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body("오류 발생 : " + e.getMessage());
         }
-        return ResponseEntity.status(HttpStatus.CONFLICT).body("권한이 없습니다.");
     }
+    
+
+    // @PostMapping("/registerCourse")
+    // @Operation(summary = "사용자가 과정 등록", description = "사용자가 과정을 등록합니다.")
+    // public ResponseEntity<?> userPutCourse(
+    //         @RequestParam String courseId,
+    //         @RequestParam String officerSessionId) {
+
+    //     try {
+
+    //         UsernamePasswordAuthenticationToken auth = (UsernamePasswordAuthenticationToken) SecurityContextHolder
+    //                 .getContext().getAuthentication();
+    //         // 유저 세션아이디 보안 컨텍스트에서 가져오기
+    //         String sessionId = auth.getPrincipal().toString();
+
+    //         // 사용자 권한 그룹에서 사용자 세션 아이디 확인
+    //         Optional<ProcessListUserOwnPermissionGroup> userPermissionGroup = processListUserOwnPermissionGroupRepository
+    //                 .findBySessionId(sessionId);
+
+    //         // 사용자의 권한이 있는지 확인
+    //         if (userPermissionGroup.isPresent()) {
+
+    //             // 권한 아이디 저장
+    //             String permissionGroupUuid = userPermissionGroup.get().getPermissionGroupUuid2();
+
+    //             // 권한 그룹에서의 권한 아이디 확인
+    //             Optional<ProcessListPermissionGroup> userPermissionName = processListPermissionGroupRepository
+    //                     .findByPermissionGroupUuid(permissionGroupUuid);
+
+    //             // 권한 그룹에 권한 아이디가 있는지 확인
+    //             if (userPermissionName.isPresent()) {
+
+    //                 // 권한 아이디의 권한 명 저장
+    //                 String permissionName = userPermissionName.get().getPermissionName();
+
+    //                 // 사용자의 권한 명이 STUDENT인지 확인
+    //                 if (permissionName.equals("STUDENT")) {
+
+    //                     // 해당 과정의 수강신청 날짜가 현재날짜보다 지났거나 아직 되지 않았을 때 수강신청을 할 수 없음
+    //                     Optional<ProcessListCourse> findCourse = processListCourseRepository.findBycourseId(courseId);
+    //                     Long nowDate = Long
+    //                             .parseLong(LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss")));
+    //                     if (Long.parseLong(findCourse.get().getEnrollEndDate()) < nowDate
+    //                             || Long.parseLong(findCourse.get().getEnrollStartDate()) > nowDate) {
+    //                         return ResponseEntity.status(HttpStatus.CONFLICT).body("수강신청 기간이 아닙니다.");
+    //                     }
+
+    //                     List<ProcessListUserOwnCourse> findUsers = processListUserOwnCourseRepository
+    //                             .findByCourseId(courseId);
+    //                     if (findUsers.size() >= Integer.parseInt(findCourse.get().getCourseCapacity())) {
+    //                         return ResponseEntity.status(HttpStatus.CONFLICT).body("수강 신청 인원이 전부 다 찼습니다.");
+    //                     }
+
+    //                     // 사용자의 과정 목록 확인
+    //                     List<ProcessListUserOwnCourse> userOwnCourses = processListUserOwnCourseRepository
+    //                             .findBySessionId(sessionId);
+
+    //                     // 이미 과정을 듣고 있으면 거짓 없으면 참
+    //                     boolean userCourses = true;
+    //                     for (ProcessListUserOwnCourse userOwnCourse : userOwnCourses) {
+    //                         if (userOwnCourse.getCourseApproval().equals("F")) {
+    //                             userCourses = false;
+    //                             break;
+    //                         } else {
+    //                             userCourses = true;
+    //                         }
+    //                     }
+
+    //                     // 듣고 있는 과정이 없을 때 실행
+    //                     if (userCourses) {
+    //                         UserOwnCourse postUserOwnCourse = UserOwnCourse.builder()
+    //                                 .sessionId(sessionId)
+    //                                 .courseId(courseId)
+    //                                 .officerSessionId(officerSessionId)
+    //                                 .courseApproval("F")
+    //                                 .build();
+    //                         processListUserOwnCourseRepository.save(postUserOwnCourse);
+
+    //                         // 해당 과정의 과목 목록 확인
+    //                         List<ProcessListCourseOwnSubject> courseOwnSubjects = processListCourseOwnSubjectRepository
+    //                                 .findByCourseIdAndOfficerSessionId(courseId, findCourse.get().getSessionId());
+
+    //                         for (ProcessListCourseOwnSubject courseOwnSubject : courseOwnSubjects) {
+
+    //                             // 해당 과목이 개설된 과목인지 확인
+    //                             Optional<ProcessListOfferedSubjects> offeredSubject = processListOfferedSubjectsRepository
+    //                                     .findBySubjectIdAndOfficerSessionId(courseOwnSubject.getSubjectId(),
+    //                                             findCourse.get().getSessionId());
+
+    //                             if (offeredSubject.isPresent()) {
+
+    //                                 UserOwnAssignment postUserOwnAssignment = UserOwnAssignment.builder()
+    //                                         .userSessionId(sessionId)
+    //                                         .offeredSubjectsId(offeredSubject.get().getOfferedSubjectsId())
+    //                                         .subjectAcceptCategory("F")
+    //                                         .build();
+    //                                 processListUserOwnAssignmentRepository.save(postUserOwnAssignment);
+
+    //                                 // 해당 과목의 영상 목록 확인
+    //                                 List<ProcessListSubjectOwnVideo> subjectOwnVideos = processListSubjectOwnVideoRepository
+    //                                         .findBySovOfferedSubjectsId(offeredSubject.get().getOfferedSubjectsId());
+
+    //                                 if (!subjectOwnVideos.isEmpty()) {
+
+    //                                     for (ProcessListSubjectOwnVideo subjectOwnVideo : subjectOwnVideos) {
+    //                                         UserOwnSubjectVideo postUserSubjectOwnVideo = UserOwnSubjectVideo.builder()
+    //                                                 .uosvSessionId(sessionId)
+    //                                                 .uosvEpisodeId(subjectOwnVideo.getEpisodeId())
+    //                                                 .uosvOfferedSubjectsId(subjectOwnVideo.getSovOfferedSubjectsId())
+    //                                                 .progress("0")
+    //                                                 .uosvFinal("0")
+    //                                                 .build();
+    //                                         processListUserOwnSubjectVideoRepository.save(postUserSubjectOwnVideo);
+    //                                     }
+
+    //                                 }
+
+    //                                 // 해당 과목의 과제가 할당되어 있는지 확인
+    //                                 List<ProcessListAssignment> findAssignments = processListAssignmentRepository
+    //                                         .findByOfferedSubjectsId(offeredSubject.get().getOfferedSubjectsId());
+
+    //                                 if (!findAssignments.isEmpty()) {
+
+    //                                     for (ProcessListAssignment findAssignment : findAssignments) {
+
+    //                                         UserOwnAssignmentEvaluation userOwnAssignmentEvaluation = UserOwnAssignmentEvaluation
+    //                                                 .builder()
+    //                                                 .uoaeSessionId(sessionId)
+    //                                                 .assignmentId(findAssignment.getAssignmentId())
+    //                                                 .teacherSessionId(findAssignment.getTeacherSessionId())
+    //                                                 .isSubmit("F")
+    //                                                 .build();
+
+    //                                         processListUserOwnAssignmentEvaluationRepository
+    //                                                 .save(userOwnAssignmentEvaluation);
+
+    //                                     }
+
+    //                                 }
+
+    //                             } else {
+    //                                 return ResponseEntity.status(HttpStatus.CONFLICT).body("개설 과목이 아닙니다");
+    //                             }
+    //                         }
+    //                         return ResponseEntity.ok().body("수강신청 완료");
+    //                     }
+    //                     return ResponseEntity.status(HttpStatus.CONFLICT).body("다른 과정을 듣고 있습니다.");
+    //                 }
+    //                 return ResponseEntity.status(HttpStatus.CONFLICT).body("수강신청 권한이 없습니다.");
+    //             }
+    //         }
+    //         return ResponseEntity.status(HttpStatus.CONFLICT).body("권한이 없습니다.");
+    //     } catch (Exception e) {
+    //         return ResponseEntity.status(HttpStatus.CONFLICT).body("오류 발생 : " + e.getMessage());
+    //     }
+    // }
 }
