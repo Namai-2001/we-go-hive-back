@@ -31,6 +31,7 @@ import com.dev.restLms.entity.FileInfo;
 import com.dev.restLms.entity.OfferedSubjects;
 import com.dev.restLms.entity.Subject;
 import com.dev.restLms.entity.User;
+import com.dev.restLms.entity.UserOwnAssignment;
 import com.dev.restLms.entity.UserOwnAssignmentEvaluation;
 import com.dev.restLms.sechan.teacherAssignment.projection.TA_A_Projection;
 import com.dev.restLms.sechan.teacherAssignment.repository.TA_A_Repository;
@@ -39,6 +40,7 @@ import com.dev.restLms.sechan.teacherAssignment.repository.TA_FI_Repository;
 import com.dev.restLms.sechan.teacherAssignment.repository.TA_OS_Repository;
 import com.dev.restLms.sechan.teacherAssignment.repository.TA_S_Repository;
 import com.dev.restLms.sechan.teacherAssignment.repository.TA_UOAE_Repository;
+import com.dev.restLms.sechan.teacherAssignment.repository.TA_UOA_Repository;
 import com.dev.restLms.sechan.teacherAssignment.repository.TA_U_Repository;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -69,6 +71,9 @@ public class TA_Controller {
 
     @Autowired
     private TA_C_Repository ta_c_repository;
+
+    @Autowired
+    private TA_UOA_Repository ta_uoa_repository;
 
     // 날짜 형식 변환 함수
     // public static String convertTo8DigitDate(String dateString) {
@@ -224,35 +229,70 @@ public class TA_Controller {
     @PostMapping("/createAssignment")
     @Operation(summary = "과제 등록", description = "선택한 과목에 새로운 과제를 등록")
     public ResponseEntity<?> createAssignment(@RequestBody Map<String, Object> assignmentData) {
-        UsernamePasswordAuthenticationToken auth = (UsernamePasswordAuthenticationToken) SecurityContextHolder
-                .getContext().getAuthentication();
-        String teacherSessionId = auth.getPrincipal().toString();
+        try {
+            UsernamePasswordAuthenticationToken auth = (UsernamePasswordAuthenticationToken) SecurityContextHolder
+                    .getContext().getAuthentication();
+            String teacherSessionId = auth.getPrincipal().toString();
 
-        String offeredSubjectsId = (String) assignmentData.get("offeredSubjectsId");
-        String assignmentTitle = (String) assignmentData.get("assignmentTitle");
-        String deadlineRaw = (String) assignmentData.get("deadline"); // yyyyMMdd 형식
-        String noticeNoRaw = (String) assignmentData.get("noticeNo"); // yyyyMMdd 형식
-        String cutline = (String) assignmentData.get("cutline");
-        String assignmentContent = (String) assignmentData.get("assignmentContent");
+            // 입력 데이터 검증
+            if (!assignmentData.containsKey("offeredSubjectsId") || !assignmentData.containsKey("assignmentTitle")
+                    || !assignmentData.containsKey("deadline") || !assignmentData.containsKey("noticeNo")
+                    || !assignmentData.containsKey("cutline") || !assignmentData.containsKey("assignmentContent")) {
+                return ResponseEntity.badRequest().body("필수 데이터가 누락되었습니다.");
+            }
 
-        // 날짜 변환
-        String deadline = convertTo8DigitDate(deadlineRaw);
-        String noticeNo = convertTo8DigitDate(noticeNoRaw);
+            String offeredSubjectsId = (String) assignmentData.get("offeredSubjectsId");
+            String assignmentTitle = (String) assignmentData.get("assignmentTitle");
+            String deadlineRaw = (String) assignmentData.get("deadline"); // yyyyMMdd 형식
+            String noticeNoRaw = (String) assignmentData.get("noticeNo"); // yyyyMMdd 형식
+            String cutline = (String) assignmentData.get("cutline");
+            String assignmentContent = (String) assignmentData.get("assignmentContent");
 
-        // 과제 생성
-        Assignment assignment = new Assignment();
-        assignment.setOfferedSubjectsId(offeredSubjectsId);
-        assignment.setAssignmentTitle(assignmentTitle);
-        assignment.setDeadline(deadline);
-        assignment.setNoticeNo(noticeNo);
-        assignment.setCutline(cutline);
-        assignment.setAssignmentContent(assignmentContent);
-        assignment.setTeacherSessionId(teacherSessionId);
+            // 날짜 변환
+            String deadline = convertTo8DigitDate(deadlineRaw);
+            String noticeNo = convertTo8DigitDate(noticeNoRaw);
 
-        // 저장
-        ta_a_repository.save(assignment);
+            // 과제 생성
+            Assignment assignment = new Assignment();
+            assignment.setOfferedSubjectsId(offeredSubjectsId);
+            assignment.setAssignmentTitle(assignmentTitle);
+            assignment.setDeadline(deadline);
+            assignment.setNoticeNo(noticeNo);
+            assignment.setCutline(cutline);
+            assignment.setAssignmentContent(assignmentContent);
+            assignment.setTeacherSessionId(teacherSessionId);
 
-        return ResponseEntity.ok("과제가 성공적으로 등록되었습니다.");
+            // 저장
+            ta_a_repository.save(assignment);
+
+            // 수강 신청된 사용자 검색 (T 또는 F)
+            List<UserOwnAssignment> userAssignments = ta_uoa_repository
+                    .findByOfferedSubjectsIdAndSubjectAcceptCategoryIn(
+                            offeredSubjectsId, List.of("T", "F"));
+
+            if (userAssignments.isEmpty()) {
+                return ResponseEntity.ok("수강신청된 사용자가 없습니다. 과제는 등록되었지만 사용자와 연결되지 않았습니다.");
+            }
+
+            // 새로운 사용자-과제 연결 생성
+            List<UserOwnAssignmentEvaluation> evaluations = new ArrayList<>();
+            for (UserOwnAssignment userAssignment : userAssignments) {
+                UserOwnAssignmentEvaluation evaluation = new UserOwnAssignmentEvaluation();
+                evaluation.setUoaeSessionId(userAssignment.getUserSessionId());
+                evaluation.setAssignmentId(assignment.getAssignmentId());
+                evaluation.setTeacherSessionId(teacherSessionId);
+                evaluation.setIsSubmit("f"); // 초기 상태는 미제출
+                evaluations.add(evaluation);
+            }
+
+            // 저장
+            ta_uoae_repository.saveAll(evaluations);
+
+            return ResponseEntity.ok("과제가 성공적으로 등록되었습니다.");
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("과제 등록 중 오류가 발생했습니다: " + e.getMessage());
+        }
     }
 
     // 학생별 과제 조회

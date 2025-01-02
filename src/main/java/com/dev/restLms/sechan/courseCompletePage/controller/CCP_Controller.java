@@ -204,8 +204,7 @@ public class CCP_Controller {
             //         .getContext().getAuthentication();
             // String userSessionId = auth.getPrincipal().toString();
 
-            
-
+        
             // courseId에 해당하는 courseTitle 가져오기
             Optional<Course> courseOpt = ccp_c_repository.findById(courseId);
             if (courseOpt.isEmpty()) {
