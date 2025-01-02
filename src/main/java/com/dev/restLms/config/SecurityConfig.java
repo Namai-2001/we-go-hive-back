@@ -65,7 +65,7 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOrigins(
-                Arrays.asList("http://localhost:3000", "http://10.10.10.200:3000", "http://10.10.10.48:3000")); // React
+                Arrays.asList("http://localhost:3000", "http://10.10.10.200:3000", "http://10.10.10.48:3000", "http://192.168.219.105:3000")); // React
                                                                                                                 // 앱의
         // URL 허용
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE")); // 허용할 HTTP 메서드
