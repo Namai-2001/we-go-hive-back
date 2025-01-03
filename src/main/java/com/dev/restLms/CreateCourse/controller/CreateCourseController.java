@@ -410,8 +410,8 @@ public class CreateCourseController {
                         teacherInfo.put("teacherBirth", findTeacherInfo.get().getUserBirth());
                         teacherInfo.put("teacherEmail", findTeacherInfo.get().getUserEmail());
                         teacherInfo.put("teacherPhoneNumber", findTeacherInfo.get().getPhoneNumber());
-                        if(findTeacherInfo.get().getFileNo()==null || findTeacherInfo.get().getFileNo().isEmpty()){
-                            teacherInfo.put("teacherFileNo", "026a765e-1eea-4a84-b010-3f51e825c60a");
+                        if(findTeacherInfo.get().getFileNo()==null || findTeacherInfo.get().getFileNo().isEmpty() || findTeacherInfo.get().getFileNo().equals("0")  ){
+                            teacherInfo.put("teacherFileNo", "16235caa-b7c2-4fb4-98f0-d16cc18c2315");
                         }else{
                             teacherInfo.put("teacherFileNo", findTeacherInfo.get().getFileNo());
                         }

@@ -84,29 +84,6 @@ public class ProcessListController {
     private ProcessLissSubjectRepository processLissSubjectRepository;
 
     // 이미지 반환
-    @GetMapping("/images/{fileNo:.+}")
-    public ResponseEntity<Resource> getImage(@PathVariable String fileNo) {
-        try {
-            Optional<FileInfo> fileInfoOptional = processListFileinfoReposutory.findByFileNo(fileNo);
-            if (!fileInfoOptional.isPresent()) {
-                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
-            }
-
-            FileInfo fileInfo = fileInfoOptional.get();
-            Path filePath = Paths.get(fileInfo.getFilePath() + fileInfo.getEncFileNm());
-            Resource resource = new UrlResource(filePath.toUri());
-
-            if (resource.exists() || resource.isReadable()) {
-                return ResponseEntity.ok()
-                        .contentType(MediaType.IMAGE_JPEG) // 이미지 형식에 맞게 설정
-                        .body(resource);
-            } else {
-                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
-            }
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
-        }
-    }
 
     @GetMapping("/allTitles")
     @Operation(summary = "모든 과정 조회", description = "전체 과정 목록을 반환합니다.")
@@ -506,7 +483,7 @@ public class ProcessListController {
                             UserOwnCourse userOwnCourse = UserOwnCourse.builder()
                             .sessionId(sessionId)
                             .courseId(courseId)
-                            .officerSessionId(findDate.get().getCourseId())
+                            .officerSessionId(findDate.get().getSessionId())
                             .courseApproval("F")
                             .build();
                             processListUserOwnCourseRepository.save(userOwnCourse);

@@ -2,15 +2,21 @@
 package com.dev.restLms.ProcessPursuit;
 
 import com.dev.restLms.entity.Course;
+import com.dev.restLms.entity.FileInfo;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.UrlResource;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -33,6 +39,9 @@ public class ProcessPursuitController {
 
     @Autowired
     private ProcessPursuitUserRepository processPursuitUserRepository;
+
+    @Autowired
+    private ProcessPursuitFileInfoRepository processPursuitFileInfoRepository;
 
     @GetMapping("/titles")
     @Operation(summary = "모든 과정 조회", description = "전체 과정 목록을 반환합니다.")
@@ -67,6 +76,7 @@ public class ProcessPursuitController {
                 courseMap.put("enrollStartDate", course.getEnrollStartDate());
                 courseMap.put("enrollEndDate", course.getEnrollEndDate());
                 courseMap.put("studentCount", studentCount);
+                courseMap.put("courseImg", course.getCourseImg());
                 // 책임자 정보 가져오기
                 courseMap.put("courseOfficerSessionId", processPursuitUsers.get().getSessionId());
                 courseMap.put("courseOfficerUserName", processPursuitUsers.get().getUserName());
@@ -94,5 +104,30 @@ public class ProcessPursuitController {
         ramdomCourse.put("Courses", resultList);
 
         return ResponseEntity.ok().body(ramdomCourse);
+    }
+
+    // 이미지 반환
+    @GetMapping("/images/{fileNo:.+}")
+    public ResponseEntity<Resource> getImage(@PathVariable String fileNo) {
+        try {
+            Optional<FileInfo> fileInfoOptional = processPursuitFileInfoRepository.findByFileNo(fileNo);
+            if (!fileInfoOptional.isPresent()) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
+            }
+
+            FileInfo fileInfo = fileInfoOptional.get();
+            Path filePath = Paths.get(fileInfo.getFilePath() + fileInfo.getEncFileNm());
+            Resource resource = new UrlResource(filePath.toUri());
+
+            if (resource.exists() || resource.isReadable()) {
+                return ResponseEntity.ok()
+                        .contentType(MediaType.IMAGE_JPEG) // 이미지 형식에 맞게 설정
+                        .body(resource);
+            } else {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
+            }
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+        }
     }
 }
