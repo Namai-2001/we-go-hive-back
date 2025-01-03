@@ -221,7 +221,7 @@ public class TeacherAssignmentController {
       PursuitPermissionGroup ppg = permisionGroupRepository
           .findByPermissionGroupUuid(uopsOpt.get().getPermissionGroupUuid2());
 
-      if (ppg.getPermissionName().equals("OFFICER") || ppg.getPermissionName().equals("INDIV_OFFICER")) {
+      if (ppg.getPermissionName().equals("OFFICER")) {
 
         List<OfferedSubjects> offeredSubjectsList = offeredSubjectsRepository
             .findByCourseIdAndOfficerSessionId(courseId, userSessionId);
@@ -302,7 +302,88 @@ public class TeacherAssignmentController {
         response.put("totalItems", totalItems);
         response.put("totalPages", totalPages);
         return ResponseEntity.ok(response);
-      } else {
+      } else if(ppg.getPermissionName().equals("INDIV_OFFICER")) {
+        List<OfferedSubjects> offeredSubjectsList = offeredSubjectsRepository
+            .findByCourseIdAndOfficerSessionId(courseId, userSessionId);
+        if (offeredSubjectsList == null || offeredSubjectsList.isEmpty()) {
+          return ResponseEntity.status(404).body("해당 과정의 개설 과목을 찾을 수 없습니다.");
+        }
+
+        List<Map<String, Object>> groupedCourseSubjects = new ArrayList<>();
+        for (OfferedSubjects offeredSubjects : offeredSubjectsList) {
+
+          List<PursuitCourse> pursuitCourses = courseRepository.findByCourseIdAndSessionId(courseId, userSessionId);
+          if (pursuitCourses == null || pursuitCourses.isEmpty()) {
+            return ResponseEntity.status(404).body("담당한 과정을 찾을 수 없습니다.");
+          }
+
+          for (PursuitCourse pursuitCourse : pursuitCourses) {
+            // 종료일자가 지나지 않은 과정만 필터링
+            if (pursuitCourse == null) {
+              continue;
+            }
+
+            boolean shouldAdd = true;
+            Optional<PursuitSubject> subjectOpt = pursuitSubjectRepository
+                .findBySubjectId(offeredSubjects.getSubjectId());
+            Optional<PursuitUser> userOpt = userRepository.findBySessionId(offeredSubjects.getTeacherSessionId());
+
+            // subjectName 필터링
+            if (subjectName != null && !subjectName.trim().isEmpty() && subjectOpt.isPresent()) {
+              if (!subjectOpt.get().getSubjectName().contains(subjectName)) {
+                shouldAdd = false;
+              }
+            }
+
+            // teacherName 필터링
+            if (teacherName != null && !teacherName.trim().isEmpty() && userOpt.isPresent()) {
+              if (!userOpt.get().getUserName().contains(teacherName)) {
+                shouldAdd = false;
+              }
+            }
+
+            // 필터링된 결과만 추가
+            if (shouldAdd) {
+              Map<String, Object> offeredSubjectInfo = new HashMap<>();
+              offeredSubjectInfo.put("OfficerSessionId", offeredSubjects.getOfficerSessionId());
+              offeredSubjectInfo.put("SubjectId", offeredSubjects.getSubjectId());
+              offeredSubjectInfo.put("CourseId", offeredSubjects.getCourseId());
+              offeredSubjectInfo.put("OfferedSubjectsId", offeredSubjects.getOfferedSubjectsId());
+              offeredSubjectInfo.put("CourseName", pursuitCourse.getCourseTitle());
+              offeredSubjectInfo.put("SubjectName", subjectOpt.map(PursuitSubject::getSubjectName).orElse(""));
+
+              // 강사 정보 추가
+              String teacherSessionId = offeredSubjects.getTeacherSessionId();
+              if (teacherSessionId != null && userOpt.isPresent()) {
+                PursuitUser user = userOpt.get();
+                offeredSubjectInfo.put("TeacherSessionId", teacherSessionId);
+                offeredSubjectInfo.put("TeacherName", user.getUserName());
+              } else {
+                offeredSubjectInfo.put("TeacherSessionId", "");
+                offeredSubjectInfo.put("TeacherName", "");
+              }
+
+              groupedCourseSubjects.add(offeredSubjectInfo);
+            }
+          }
+
+        }
+        // 페이징 처리
+        int totalItems = groupedCourseSubjects.size();
+        int totalPages = (int) Math.ceil((double) totalItems / size);
+        int start = Math.min(page * size, totalItems);
+        int end = Math.min(start + size, totalItems);
+
+        List<Map<String, Object>> pagedResultList = groupedCourseSubjects.subList(start, end);
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("groupedCourseSubjects", pagedResultList);
+        response.put("currentPage", page);
+        response.put("totalItems", totalItems);
+        response.put("totalPages", totalPages);
+        return ResponseEntity.ok(response);
+      }
+      else {
         return ResponseEntity.status(403).body("접근 권한이 없습니다.");
       }
     } catch (Exception e) {
