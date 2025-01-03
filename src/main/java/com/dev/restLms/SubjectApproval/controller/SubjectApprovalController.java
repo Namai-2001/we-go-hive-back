@@ -239,7 +239,7 @@ public class SubjectApprovalController {
                     subjectMap.put("subjectDesc", findSubject.get().getSubjectDesc());
                     subjectMap.put("subjectCategory", findSubject.get().getSubjectCategory());
                     subjectMap.put("subjectPromotion", findSubject.get().getSubjectPromotion());
-                    subjectMap.put("subjectImageLink", "026a765e-1eea-4a84-b010-3f51e825c60a");
+                    subjectMap.put("subjectImageLink", findSubject.get().getSubjectImageLink());
 
                     return ResponseEntity.ok().body(subjectMap);
 

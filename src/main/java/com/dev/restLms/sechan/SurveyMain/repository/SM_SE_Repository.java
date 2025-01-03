@@ -8,6 +8,5 @@ import com.dev.restLms.entity.SurveyExecution;
 
 public interface SM_SE_Repository extends JpaRepository<SurveyExecution, String> {
     List<SurveyExecution> findByCourseId(String courseId);
-
     Optional<SurveyExecution> findByOfferedSubjectsId(String offeredSubjectsId);
 }

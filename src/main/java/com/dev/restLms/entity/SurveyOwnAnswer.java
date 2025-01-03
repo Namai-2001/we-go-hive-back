@@ -21,7 +21,6 @@ public class SurveyOwnAnswer {
 
     @Id
     private String surveyAnswerId;
-
     private String surveyQuestionId;
     private String answerData;
     private String score;

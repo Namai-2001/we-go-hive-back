@@ -29,6 +29,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+
 
 
 @RestController
@@ -45,53 +48,124 @@ public class announcementController {
     @Autowired
     AnnouncementFileInfoRepository announcementFileInfoRepository;
 
-    @GetMapping()
+    @PostMapping()
     @Operation(summary = "공지사항 게시글", description = "공지사항의 게시글들을 반환합니다.")
-    public ResponseEntity<?> getAnnountcementPost(
+    public ResponseEntity<?> searchAnnountcementPost(
+        @RequestParam String title,
         @RequestParam(defaultValue = "0") int page,
         @RequestParam(defaultValue = "10") int size
         ) {
 
-            // 공지사항 아이디 확인 
-            Optional<announcementBoard> findBoardId = announcementBoardRepository.findByBoardCategory("공지사항");
-
-            if(findBoardId.isPresent()){
-
-                // 공지사항 게시판 확인
-                Sort sort = Sort.by(Sort.Direction.DESC, "isNotice").and(Sort.by(Sort.Direction.DESC, "createdDate"));
-                Pageable pageable = PageRequest.of(page, size, sort);
-                Page<announcementBoardPost> findBoardPosts = announcementBoardPostRepository.findByBoardId(findBoardId.get().getBoardId(), pageable);
-
+            try {
+                
+                // 공지사항 아이디 확인 
+                Optional<announcementBoard> findBoardId = announcementBoardRepository.findByBoardCategory("공지사항");
+    
                 List<Map<String, Object>> resultList = new ArrayList<>();
+    
+                if(findBoardId.isPresent()){
+    
+                    List<announcementBoardPost> findPostIds = announcementBoardPostRepository.findByBoardId(findBoardId.get().getBoardId(), Sort.by(Sort.Direction.DESC, "createdDate"));
+    
+                    for(announcementBoardPost findPostId :  findPostIds ){
+    
+                        Optional<announcementBoardPost> findPostTitle = announcementBoardPostRepository.findByPostId(findPostId.getPostId());
+    
+                        if(findPostTitle.isPresent()){
+    
+                            if(findPostTitle.get().getTitle().contains(title)){
+    
+                                Map<String, Object> postMap = new HashMap<>();
+                                postMap.put("postId", findPostId.getPostId());
+                                postMap.put("title", findPostId.getTitle());
+                                postMap.put("authorNickname", findPostId.getAuthorNickname());
+                                postMap.put("createdDate", findPostId.getCreatedDate());
+                                postMap.put("isNotice", findPostId.getIsNotice());
+                                postMap.put("boardId", findBoardId.get().getBoardId());
+                                postMap.put("boardCategory", findBoardId.get().getBoardCategory());
+                                resultList.add(postMap);
+    
+                            }
+    
+                        }
+    
+                    }
+    
+                    // 페이징 처리
+                    int totalItems = resultList.size();
+                    int totalPages = (int) Math.ceil((double) totalItems / size);
+                    int start = page * size;
+                    int end = Math.min(start + size, totalItems);
 
-                for(announcementBoardPost findBoardPost : findBoardPosts){
+                    List<Map<String, Object>> pagedResultList = resultList.subList(start, end);
 
-                    Map<String, Object> postMap = new HashMap<>();
-                    postMap.put("postId", findBoardPost.getPostId());
-                    postMap.put("title", findBoardPost.getTitle());
-                    postMap.put("authorNickname", findBoardPost.getAuthorNickname());
-                    postMap.put("createdDate", findBoardPost.getCreatedDate());
-                    postMap.put("isNotice", findBoardPost.getIsNotice());
-                    postMap.put("boardId", findBoardId.get().getBoardId());
-                    postMap.put("boardCategory", findBoardId.get().getBoardCategory());
-                    resultList.add(postMap);
+                    Map<String, Object> response = new HashMap<>();
+                    response.put("posts", pagedResultList);
+                    response.put("boardId", findBoardId.get().getBoardId());
+                    response.put("currentPage", page);
+                    response.put("totalItems", totalItems);
+                    response.put("totalPages", totalPages);
 
+                    return ResponseEntity.ok().body(response);
+    
                 }
 
-                Map<String, Object> response = new HashMap<>();
-                response.put("posts", resultList);
-                response.put("boardId", findBoardId.get().getBoardId());
-                response.put("currentPage", findBoardPosts.getNumber());
-                response.put("totalItems", findBoardPosts.getTotalElements());
-                response.put("totalPages", findBoardPosts.getTotalPages());
+                return ResponseEntity.status(HttpStatus.CONFLICT).body("해당 게시판이 존재하지 않습니다.");
 
-                return ResponseEntity.ok().body(response);
-
+            } catch (Exception e) {
+                return ResponseEntity.status(HttpStatus.CONFLICT).body("오류 발생 : " + e.getMessage());
             }
 
-
-        return ResponseEntity.status(HttpStatus.CONFLICT).body("해당 게시판이 존재하지 않습니다.");
     }
+    
+
+    // @GetMapping()
+    // @Operation(summary = "공지사항 게시글", description = "공지사항의 게시글들을 반환합니다.")
+    // public ResponseEntity<?> getAnnountcementPost(
+    //     @RequestParam(defaultValue = "0") int page,
+    //     @RequestParam(defaultValue = "10") int size
+    //     ) {
+
+    //         // 공지사항 아이디 확인 
+    //         Optional<announcementBoard> findBoardId = announcementBoardRepository.findByBoardCategory("공지사항");
+
+    //         if(findBoardId.isPresent()){
+
+    //             // 공지사항 게시판 확인
+    //             Sort sort = Sort.by(Sort.Direction.DESC, "isNotice").and(Sort.by(Sort.Direction.DESC, "createdDate"));
+    //             Pageable pageable = PageRequest.of(page, size, sort);
+    //             Page<announcementBoardPost> findBoardPosts = announcementBoardPostRepository.findByBoardId(findBoardId.get().getBoardId(), pageable);
+
+    //             List<Map<String, Object>> resultList = new ArrayList<>();
+
+    //             for(announcementBoardPost findBoardPost : findBoardPosts){
+
+    //                 Map<String, Object> postMap = new HashMap<>();
+    //                 postMap.put("postId", findBoardPost.getPostId());
+    //                 postMap.put("title", findBoardPost.getTitle());
+    //                 postMap.put("authorNickname", findBoardPost.getAuthorNickname());
+    //                 postMap.put("createdDate", findBoardPost.getCreatedDate());
+    //                 postMap.put("isNotice", findBoardPost.getIsNotice());
+    //                 postMap.put("boardId", findBoardId.get().getBoardId());
+    //                 postMap.put("boardCategory", findBoardId.get().getBoardCategory());
+    //                 resultList.add(postMap);
+
+    //             }
+
+    //             Map<String, Object> response = new HashMap<>();
+    //             response.put("posts", resultList);
+    //             response.put("boardId", findBoardId.get().getBoardId());
+    //             response.put("currentPage", findBoardPosts.getNumber());
+    //             response.put("totalItems", findBoardPosts.getTotalElements());
+    //             response.put("totalPages", findBoardPosts.getTotalPages());
+
+    //             return ResponseEntity.ok().body(response);
+
+    //         }
+
+
+    //     return ResponseEntity.status(HttpStatus.CONFLICT).body("해당 게시판이 존재하지 않습니다.");
+    // }
 
     @GetMapping("/mainBanner")
     public ResponseEntity<?> getMainBannerPost(

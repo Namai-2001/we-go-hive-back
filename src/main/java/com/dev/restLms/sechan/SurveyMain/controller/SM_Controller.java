@@ -20,6 +20,7 @@ import com.dev.restLms.entity.SurveyOwnResult;
 import com.dev.restLms.entity.SurveyQuestion;
 import com.dev.restLms.sechan.SurveyMain.dto.SM_Survey_DTO;
 import com.dev.restLms.sechan.SurveyMain.projection.SM_C_Projection;
+import com.dev.restLms.sechan.SurveyMain.projection.SM_SQ_Projection;
 // import com.dev.restLms.sechan.SurveyMain.projection.SM_SQ_Projection;
 import com.dev.restLms.sechan.SurveyMain.projection.SM_S_Projection;
 import com.dev.restLms.sechan.SurveyMain.projection.SM_UOC_Projection;
@@ -453,6 +454,14 @@ public class SM_Controller {
             @RequestParam(required = false) String courseId,
             @RequestParam(required = false) String offeredSubjectsId) {
         try {
+            
+            // ------------------------------ 수정 부분
+            UsernamePasswordAuthenticationToken auth = (UsernamePasswordAuthenticationToken) SecurityContextHolder
+            .getContext().getAuthentication();
+            // 유저 세션아이디 보안 컨텍스트에서 가져오기
+            String sessionId = auth.getPrincipal().toString();
+            // ------------------------------ 수정 부분
+
             System.out.println("GET /survey/questions called");
             System.out.println("surveyExecutionId: " + surveyExecutionId);
             System.out.println("courseId: " + courseId);
@@ -487,30 +496,56 @@ public class SM_Controller {
             }
             System.out.println("Survey type determined: " + surveyType);
 
-            // 질문 조회
-            List<SurveyQuestion> questions = sm_sq2_repository.findBySurveyCategory(surveyType);
-            if (questions.isEmpty()) {
-                System.out.println("No questions found for survey type: " + surveyType);
-                return ResponseEntity.status(HttpStatus.NOT_FOUND).body("등록된 질문이 없습니다.");
-            }
-            System.out.println("Questions retrieved: " + questions.size());
-
-            // SurveyAnswerId 조회 및 매핑
+            // ------------------------------ 수정 부분 (Repository - SM_SQ, SM_SOR 수정)
+            // SM_SQ 수정 - Optional<SM_SQ_Projection> findBySurveyQuestionId(String surveyQuestionId);
+            // SM_SOR 수정 - List<SurveyOwnResult> findBySurveyExecutionIdAndSessionId(String surveyExecutionId, String sessionId);
+            List<SurveyOwnResult> findQuestionIds = sm_sor_repository.findBySurveyExecutionIdAndSessionId(surveyExecutionId, sessionId);
+            
             List<Map<String, Object>> questionData = new ArrayList<>();
-            for (SurveyQuestion question : questions) {
-                System.out.println("Processing question: " + question.getSurveyQuestionId());
-                Optional<SurveyOwnAnswer> answerOpt = sm_soa_repository
-                        .findBySurveyQuestionId(question.getSurveyQuestionId());
+            
+            for(SurveyOwnResult findQuestionId : findQuestionIds){
 
-                Map<String, Object> questionMap = new HashMap<>();
-                questionMap.put("surveyQuestionId", question.getSurveyQuestionId());
-                questionMap.put("questionData", question.getQuestionData());
-                questionMap.put("answerCategory", question.getAnswerCategory());
-                questionMap.put("surveyAnswerId", answerOpt.map(SurveyOwnAnswer::getSurveyAnswerId).orElse(null));
+                Optional<SM_SQ_Projection> findQuestion = sm_sq_repository.findBySurveyQuestionId(findQuestionId.getSurveyQuestionId());
 
-                System.out.println("Mapped question data: " + questionMap);
-                questionData.add(questionMap);
+                if(findQuestion.isPresent()){
+
+                    Map<String, Object> questionMap = new HashMap<>();
+                    questionMap.put("surveyQeustionId", findQuestionId.getSurveyQuestionId());
+                    questionMap.put("questionData", findQuestion.get().getQuestionData());
+                    questionMap.put("answerCategory", findQuestion.get().getAnswerCategory());
+                    questionMap.put("surveyAnswerId", findQuestionId.getSurveyAnswerId());
+                    
+                    questionData.add(questionMap);
+                    
+                }
+                
             }
+            // ------------------------------ 수정 부분
+
+            // // 질문 조회
+            // List<SurveyQuestion> questions = sm_sq2_repository.findBySurveyCategory(surveyType);
+            // if (questions.isEmpty()) {
+            //     System.out.println("No questions found for survey type: " + surveyType);
+            //     return ResponseEntity.status(HttpStatus.NOT_FOUND).body("등록된 질문이 없습니다.");
+            // }
+            // System.out.println("Questions retrieved: " + questions.size());
+
+            // // SurveyAnswerId 조회 및 매핑
+            // List<Map<String, Object>> questionData = new ArrayList<>();
+            // for (SurveyQuestion question : questions) {
+            //     System.out.println("Processing question: " + question.getSurveyQuestionId());
+            //     Optional<SurveyOwnAnswer> answerOpt = sm_soa_repository
+            //             .findBySurveyQuestionId(question.getSurveyQuestionId());
+
+            //     Map<String, Object> questionMap = new HashMap<>();
+            //     questionMap.put("surveyQuestionId", question.getSurveyQuestionId());
+            //     questionMap.put("questionData", question.getQuestionData());
+            //     questionMap.put("answerCategory", question.getAnswerCategory());
+            //     questionMap.put("surveyAnswerId", answerOpt.map(SurveyOwnAnswer::getSurveyAnswerId).orElse(null));
+
+            //     System.out.println("Mapped question data: " + questionMap);
+            //     questionData.add(questionMap);
+            // }
 
             // 결과 반환
             Map<String, Object> response = new HashMap<>();
@@ -562,7 +597,9 @@ public class SM_Controller {
                 // SurveyOwnAnswer 존재 확인
                 Optional<SurveyOwnAnswer> existingAnswerOpt = sm_soa_repository
                         .findBySurveyAnswerId(answerDTO.getSurveyAnswerId());
+                        System.out.println("Processing answer 12 12 : " + answerDTO);
                 if (existingAnswerOpt.isPresent()) {
+                    
                     // 기존 레코드 업데이트
                     SurveyOwnAnswer existingAnswer = existingAnswerOpt.get();
                     existingAnswer.setAnswerData(answerDTO.getAnswerData());

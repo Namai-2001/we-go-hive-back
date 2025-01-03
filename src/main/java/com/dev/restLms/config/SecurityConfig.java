@@ -49,6 +49,7 @@ public class SecurityConfig {
                                         "/teacher/video-management/delete-video/{offeredSubjectsId}/{videoId}",
                                         "/Videoplayer/videoList/{episodeId}/{offeredSubjectsId}",
                                         "/slp/images/{fileNo:.+}",
+                                        "/sid/images/{fileNo:.+}",
                                         "/op/images/{fileNo:.+}",
                                         "/lecture/images/{fileNo:.+}",
                                         "/courseComplete/download/certificate/**",

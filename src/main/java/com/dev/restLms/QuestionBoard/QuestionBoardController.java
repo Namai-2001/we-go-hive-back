@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
 
@@ -53,10 +54,11 @@ public class QuestionBoardController {
     @Autowired
     private QuestionBoardPermissionGroupRepository questionBoardPermissionGroupRepository;
 
-    @GetMapping()
+    @PostMapping()
     @Operation(summary = "해당 질문 게시판의 게시글 제목, 사용자, 작성날짜", description = "해당 질문 게시판에 대한 게시글 목록을 반환합니다")
     public ResponseEntity<?> getAllSubjectQuestion(
         @RequestParam String offeredSubjectsId,
+        @RequestParam String title,
         @RequestParam(defaultValue = "0") int page,
         @RequestParam(defaultValue = "10") int size
     ) {
@@ -83,14 +85,14 @@ public class QuestionBoardController {
 
             switch (permissionGroupName) {
                 case "SITE_OFFICER":
-                    Map<String, Object> response1 = saveboardPost(sessionId, offeredSubjectsId, page, size);
+                    Map<String, Object> response1 = saveboardPost(title, offeredSubjectsId, page, size);
                     return ResponseEntity.ok().body(response1);
 
                 case "INDIV_OFFICER", "OFFICER":
                     // 해당 과정의 책임자인지 확인
                     Optional<QuestionBoardOfferedSubjects> courseOfficerCheck = questionBoardOfferedSubjectsRepository.findByOfferedSubjectsIdAndOfficerSessionId(offeredSubjectsId, sessionId);
                     if(courseOfficerCheck.isPresent()){
-                        Map<String, Object> response2 = saveboardPost(sessionId, offeredSubjectsId, page, size);
+                        Map<String, Object> response2 = saveboardPost(title, offeredSubjectsId, page, size);
                         return ResponseEntity.ok().body(response2);
                     }else{
                         return ResponseEntity.status(HttpStatus.CONFLICT).body("해당 과정의 책임자가 아닙니다");
@@ -99,7 +101,7 @@ public class QuestionBoardController {
                     // 해당 과목의 강사인지 확인
                     Optional<QuestionBoardOfferedSubjects> teacherSessionIdCheck = questionBoardOfferedSubjectsRepository.findByOfferedSubjectsIdAndTeacherSessionId(offeredSubjectsId, sessionId);
                     if(teacherSessionIdCheck.isPresent()){
-                        Map<String, Object> response3 = saveboardPost(sessionId, offeredSubjectsId, page, size);
+                        Map<String, Object> response3 = saveboardPost(title, offeredSubjectsId, page, size);
                         return ResponseEntity.ok().body(response3);
                     }else{
                         return ResponseEntity.status(HttpStatus.CONFLICT).body("해당 과정의 강사가 아닙니다");
@@ -108,7 +110,7 @@ public class QuestionBoardController {
                     // 해당 과목의 수강생인지 확인
                     Optional<QuestionBoardUserOwnAssignment> userSessionCheck = questionBoardUserOwnAssignmentRepository.findByOfferedSubjectsIdAndUserSessionId(offeredSubjectsId, sessionId);
                     if(userSessionCheck.isPresent()){
-                        Map<String, Object> response4 = saveboardPost(sessionId, offeredSubjectsId, page, size);
+                        Map<String, Object> response4 = saveboardPost(title, offeredSubjectsId, page, size);
                         return ResponseEntity.ok().body(response4);
                     }else{
                         return ResponseEntity.status(HttpStatus.CONFLICT).body("해당 과정의 수강생이 아닙니다");
@@ -122,19 +124,17 @@ public class QuestionBoardController {
             return ResponseEntity.status(HttpStatus.CONFLICT).body("해당 과목의 게시판이 없습니다.");
     }
 
-    private Map<String, Object> saveboardPost(String sessionId, String offeredSubjectsId, int page, int size) {
+    private Map<String, Object> saveboardPost(String title, String offeredSubjectsId, int page, int size) {
 
         // 개설과목의 게시판아이디 확인하기 위함
         Optional<QuestionBoard> questionBoard = questionBoardRepository.findByOfferedSubjectsId(offeredSubjectsId);
 
         List<Map<String, Object>> resultList = new ArrayList<>();
-    
-        // 페이징 처리된 게시글 가져오기
+
         Sort sort = Sort.by(Sort.Direction.DESC, "isNotice").and(Sort.by(Sort.Direction.DESC, "createdDate"));
-        Pageable pageable = PageRequest.of(page, size, sort);
-        Page<QuestionBoardPost> questionBoardPosts =
-            questionBoardPostRepository.findByBoardId(questionBoard.get().getBoardId(), pageable);
-    
+
+        List<QuestionBoardPost> findPostIds = questionBoardPostRepository.findByBoardId(questionBoard.get().getBoardId(), sort);
+
         // 해당 과목의 개설과목코드를 통한 선생님 세션아이디 가져오기 위함
         Optional<QuestionBoardOfferedSubjects> offeredSubjects =
             questionBoardOfferedSubjectsRepository.findByOfferedSubjectsId(offeredSubjectsId);
@@ -146,32 +146,98 @@ public class QuestionBoardController {
         // 과목테이블에 과목코드를 통해 과목이름 확인
         Optional<QuestionBoardSubject> subject =
             questionBoardSubjectRepository.findBySubjectId(courseSubject.get().getSubjectId());
-    
-        for (QuestionBoardPost post : questionBoardPosts) {
-            Map<String, Object> postMap = new HashMap<>();
-            postMap.put("sessionId", post.getSessionId());
-            postMap.put("postId", post.getPostId());
-            postMap.put("title", post.getTitle());
-            postMap.put("authorNickname", post.getAuthorNickname());
-            postMap.put("createdDate", post.getCreatedDate());
-            postMap.put("isNotice", post.getIsNotice());
-            postMap.put("teacherSessionId", offeredSubjects.get().getTeacherSessionId());
-            postMap.put("boardCategory", questionBoard.get().getBoardCategory());
-            postMap.put("subjectName", subject.get().getSubjectName());
-            postMap.put("boardId", questionBoard.get().getBoardId());
-            resultList.add(postMap);
+
+        for(QuestionBoardPost findPostId : findPostIds){
+
+            Optional<QuestionBoardPost> findPostTitle = questionBoardPostRepository.findByPostId(findPostId.getPostId());
+
+            if(findPostTitle.isPresent()){
+
+                if(findPostTitle.get().getTitle().contains(title)){
+
+                    Map<String, Object> postMap = new HashMap<>();
+                    postMap.put("sessionId", findPostTitle.get().getSessionId());
+                    postMap.put("postId", findPostTitle.get().getPostId());
+                    postMap.put("title", findPostTitle.get().getTitle());
+                    postMap.put("authorNickname", findPostTitle.get().getAuthorNickname());
+                    postMap.put("createdDate", findPostTitle.get().getCreatedDate());
+                    postMap.put("isNotice", findPostTitle.get().getIsNotice());
+                    postMap.put("teacherSessionId", offeredSubjects.get().getTeacherSessionId());
+                    postMap.put("boardCategory", questionBoard.get().getBoardCategory());
+                    postMap.put("subjectName", subject.get().getSubjectName());
+                    postMap.put("boardId", questionBoard.get().getBoardId());
+                    resultList.add(postMap);
+
+                }
+
+            }
+
         }
-    
-        Map<String, Object> response = new HashMap<>();
-        response.put("posts", resultList);
+
+         // 페이징 처리
+         int totalItems = resultList.size();
+         int totalPages = (int) Math.ceil((double) totalItems / size);
+         int start = page * size;
+         int end = Math.min(start + size, totalItems);
+
+         List<Map<String, Object>> pagedResultList = resultList.subList(start, end);
+
+         Map<String, Object> response = new HashMap<>();
+        response.put("posts", pagedResultList);
         response.put("boardCategory", questionBoard.get().getBoardCategory());
         response.put("offeredSubjectsId", questionBoard.get().getOfferedSubjectsId());
         response.put("boardId", questionBoard.get().getBoardId());
-        response.put("currentPage", questionBoardPosts.getNumber());
-        response.put("totalItems", questionBoardPosts.getTotalElements());
-        response.put("totalPages", questionBoardPosts.getTotalPages());
+        response.put("currentPage", page);
+        response.put("totalItems", totalItems);
+        response.put("totalPages", totalPages);
 
-        return response;
+         return response;
+
+
+    
+        // // 페이징 처리된 게시글 가져오기
+        // Sort sort = Sort.by(Sort.Direction.DESC, "isNotice").and(Sort.by(Sort.Direction.DESC, "createdDate"));
+        // Pageable pageable = PageRequest.of(page, size, sort);
+        // Page<QuestionBoardPost> questionBoardPosts =
+        //     questionBoardPostRepository.findByBoardId(questionBoard.get().getBoardId(), pageable);
+    
+        // // 해당 과목의 개설과목코드를 통한 선생님 세션아이디 가져오기 위함
+        // Optional<QuestionBoardOfferedSubjects> offeredSubjects =
+        //     questionBoardOfferedSubjectsRepository.findByOfferedSubjectsId(offeredSubjectsId);
+    
+        // // 개설과목 테이블에서 개설과목코드를 통해 과목코드 확인
+        // Optional<QuestionBoardCourseOwnSubject> courseSubject =
+        //     questionBoardCourseOwnSubjectRepository.findBySubjectId(offeredSubjects.get().getSubjectId());
+    
+        // // 과목테이블에 과목코드를 통해 과목이름 확인
+        // Optional<QuestionBoardSubject> subject =
+        //     questionBoardSubjectRepository.findBySubjectId(courseSubject.get().getSubjectId());
+    
+        // for (QuestionBoardPost post : questionBoardPosts) {
+        //     Map<String, Object> postMap = new HashMap<>();
+        //     postMap.put("sessionId", post.getSessionId());
+        //     postMap.put("postId", post.getPostId());
+        //     postMap.put("title", post.getTitle());
+        //     postMap.put("authorNickname", post.getAuthorNickname());
+        //     postMap.put("createdDate", post.getCreatedDate());
+        //     postMap.put("isNotice", post.getIsNotice());
+        //     postMap.put("teacherSessionId", offeredSubjects.get().getTeacherSessionId());
+        //     postMap.put("boardCategory", questionBoard.get().getBoardCategory());
+        //     postMap.put("subjectName", subject.get().getSubjectName());
+        //     postMap.put("boardId", questionBoard.get().getBoardId());
+        //     resultList.add(postMap);
+        // }
+    
+        // Map<String, Object> response = new HashMap<>();
+        // response.put("posts", resultList);
+        // response.put("boardCategory", questionBoard.get().getBoardCategory());
+        // response.put("offeredSubjectsId", questionBoard.get().getOfferedSubjectsId());
+        // response.put("boardId", questionBoard.get().getBoardId());
+        // response.put("currentPage", questionBoardPosts.getNumber());
+        // response.put("totalItems", questionBoardPosts.getTotalElements());
+        // response.put("totalPages", questionBoardPosts.getTotalPages());
+
+        // return response;
 
     }
     

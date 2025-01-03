@@ -18,7 +18,6 @@ import lombok.Setter;
 @AllArgsConstructor
 @Builder
 public class SurveyQuestion {
-    
     @Id
     private String surveyQuestionId;
 

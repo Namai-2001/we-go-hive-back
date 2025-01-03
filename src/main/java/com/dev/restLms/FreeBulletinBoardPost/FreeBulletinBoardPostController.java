@@ -9,6 +9,7 @@ import org.springframework.web.multipart.MultipartFile;
 import com.dev.restLms.entity.BoardPost;
 import com.dev.restLms.entity.Comment;
 import com.dev.restLms.entity.FileInfo;
+import com.dev.restLms.entity.PermissionGroup;
 import com.dev.restLms.entity.UserOwnPermissionGroup;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -86,10 +87,25 @@ public class FreeBulletinBoardPostController {
                 // 유저 세션아이디 보안 컨텍스트에서 가져오기
                 String sessionId = auth.getPrincipal().toString();
 
-        Optional<UserOwnPermissionGroup> permissionCheck = freeBulletinBoardPostUserOwnPermissionGroupRepository.findBySessionId(sessionId);
+                Optional<UserOwnPermissionGroup> permissionCheck = freeBulletinBoardPostUserOwnPermissionGroupRepository.findBySessionId(sessionId);
+
+                Map<String, String> permissionMap = new HashMap<>();
+
+                if(permissionCheck.isPresent()){
+
+                    Optional<FreeBulletinBoardPostPermissionGroup> findPermissionName = freeBulletinBoardPostPermissionGroupRepository.findByPermissionGroupUuid(permissionCheck.get().getPermissionGroupUuid2());
+
+                    if(findPermissionName.isPresent()){
+
+                        permissionMap.put("permissionName", findPermissionName.get().getPermissionName());
+                        permissionMap.put("message", "작성 권한이 확인되었습니다.");
+
+                    }
+
+                }
 
         if(permissionCheck.isPresent()){
-            return ResponseEntity.ok().body("작성 권한이 확인되었습니다.");
+            return ResponseEntity.ok().body(permissionMap);
         }else{
             return ResponseEntity.status(HttpStatus.CONFLICT).body("작성 권한이 없습니다.");
         }

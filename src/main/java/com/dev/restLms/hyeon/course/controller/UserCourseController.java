@@ -118,11 +118,11 @@ public class UserCourseController {
                     Course course = courseRepository.findByCourseId(uoc.getCourseId());
                     if (course == null) continue;
 
-                    String courseBoundary = calculateCourseDuration(course.getCourseStartDate(), course.getCourseBoundary());
+                    String courseBoundary = calculateCourseDuration(course.getCourseStartDate(), course.getCourseEndDate());
                     String formattedStartDate = convertTo8DigitDate(course.getCourseStartDate());
                     String formattedEndDate = convertTo8DigitDate(course.getCourseEndDate());
 
-                    if ("T".equals(uoc.getCourseApproval()) && isCoursePast(currentDate, course.getCourseBoundary())) {
+                    if ("T".equals(uoc.getCourseApproval()) && isCoursePast(currentDate, course.getCourseEndDate())) {
                         
                         CourseDTO c = CourseDTO.builder()
                             .courseId(course.getCourseId())
@@ -138,7 +138,7 @@ public class UserCourseController {
                         // 수료일이 과거면 "이전에 수료한 과정"
                         previousCourses.add(c);
 
-                    } else if ("F".equals(uoc.getCourseApproval()) && !isCoursePast(currentDate, course.getCourseBoundary())) {
+                    } else if ("F".equals(uoc.getCourseApproval()) && !isCoursePast(currentDate, course.getCourseEndDate())) {
 
                         elapsedDays = calculateCourseDuration(course.getCourseStartDate(), formattedDate);
                         

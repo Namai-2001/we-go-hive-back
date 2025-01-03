@@ -14,6 +14,6 @@ public interface SM_SOA_Repository extends JpaRepository<SurveyOwnAnswer, String
 
     Optional<SurveyOwnAnswer> findBySurveyAnswerId(String surveyAnswerId);
 
-
     Optional<SurveyOwnAnswer> findBySurveyQuestionId(String surveyQuestionId);
+    Optional<SurveyOwnAnswer> findBySurveyQuestionIdAndSurveyAnswerId(String surveyQuestionId, String surveyAnswerId);
 }
