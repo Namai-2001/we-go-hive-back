@@ -3,6 +3,7 @@ package com.dev.restLms.ProcessList;
 
 import com.dev.restLms.entity.Course;
 import com.dev.restLms.entity.FileInfo;
+import com.dev.restLms.entity.Subject;
 import com.dev.restLms.entity.UserOwnAssignment;
 import com.dev.restLms.entity.UserOwnAssignmentEvaluation;
 import com.dev.restLms.entity.UserOwnCourse;
@@ -78,6 +79,9 @@ public class ProcessListController {
 
     @Autowired
     private ProcessListFileinfoReposutory processListFileinfoReposutory;
+
+    @Autowired
+    private ProcessLissSubjectRepository processLissSubjectRepository;
 
     // 이미지 반환
     @GetMapping("/images/{fileNo:.+}")
@@ -443,28 +447,43 @@ public class ProcessListController {
             // 유저 세션아이디 보안 컨텍스트에서 가져오기
             String sessionId = auth.getPrincipal().toString();
 
+            // 사용자 권한 그룹 확인 
             Optional<ProcessListUserOwnPermissionGroup> findUserPermission = processListUserOwnPermissionGroupRepository.findBySessionId(sessionId);
 
             if(findUserPermission.isPresent()){
 
+                // 사용자 권한 이름 확인 
                 Optional<ProcessListPermissionGroup> findPermissionName = processListPermissionGroupRepository.findByPermissionGroupUuid(findUserPermission.get().getPermissionGroupUuid2());
 
                 if(findPermissionName.isPresent() && findPermissionName.get().getPermissionName().equals("STUDENT")){
 
+                    // 해당 과정 정보 확인 
                     Optional<ProcessListCourse> findDate = processListCourseRepository.findBycourseId(courseId);
 
                     if(findDate.isPresent()){
+
+                        // 해당 과목의 subjectId확인인
+                        List<ProcessListCourseOwnSubject> findSubjectIds = processListCourseOwnSubjectRepository.findByCourseId(courseId);
+                        for(ProcessListCourseOwnSubject findSubjectId : findSubjectIds){
+                            // 해당 과목에 강사가 배치되었는지 확인 
+                            Optional<Subject> findTeacherSessionId = processLissSubjectRepository.findBySubjectId(findSubjectId.getSubjectId());
+                            if(findTeacherSessionId.get().getTeacherSessionId().isEmpty() || findTeacherSessionId.get().getTeacherSessionId() == null){
+                                return ResponseEntity.status(HttpStatus.CONFLICT).body("현재 과목에 배정된 강사가 존재하지 않아 수강신청이 되지 않습니다.<br> 빠른 시일내에 준비하겠습니다.");
+                            }
+                        }
 
                         Long nowDate = Long.parseLong(LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss")));
                         if(Long.parseLong(findDate.get().getEnrollStartDate())>nowDate && Long.parseLong(findDate.get().getEnrollEndDate()) < nowDate){
                             return ResponseEntity.status(HttpStatus.CONFLICT).body("수강신청 기간이 아닙니다");
                         }
 
+                        // 해당 과정 신청인원 확인 
                         List<ProcessListUserOwnCourse> findUsers = processListUserOwnCourseRepository.findByCourseId(courseId);
                         if(findUsers.size() >= Integer.parseInt(findDate.get().getCourseCapacity())){
                             return ResponseEntity.status(HttpStatus.CONFLICT).body("수강 신청 인원이 초과되었습니다.");
                         }
 
+                        // 사용자가 듣고 있는 과정이 있는지 확인 
                         List<ProcessListUserOwnCourse> findUserCourses = processListUserOwnCourseRepository.findBySessionId(sessionId);
                         boolean userCoursesCheck = true;
 
@@ -482,6 +501,8 @@ public class ProcessListController {
                         }
 
                         if(userCoursesCheck){
+
+                            // 사용자별 과정 목록에 삽입
                             UserOwnCourse userOwnCourse = UserOwnCourse.builder()
                             .sessionId(sessionId)
                             .courseId(courseId)
@@ -490,13 +511,16 @@ public class ProcessListController {
                             .build();
                             processListUserOwnCourseRepository.save(userOwnCourse);
                             
+                            // 해당 과정의 과목 목록 확인 
                             List<ProcessListCourseOwnSubject> findCourseSubjects = processListCourseOwnSubjectRepository.findByCourseIdAndOfficerSessionId(courseId, findDate.get().getSessionId());
                             for(ProcessListCourseOwnSubject findCourseSubject : findCourseSubjects){
 
+                                // 해당 과목의 개설과목코드 확인 
                                 Optional<ProcessListOfferedSubjects> findOfferedSubjectsId = processListOfferedSubjectsRepository.findBySubjectIdAndOfficerSessionIdAndCourseId(findCourseSubject.getSubjectId(), findDate.get().getSessionId(), courseId);
 
                                 if(findOfferedSubjectsId.isPresent()){
 
+                                    // 사용자별 과목 목록에 삽입
                                     UserOwnAssignment userOwnAssignment = UserOwnAssignment.builder()
                                     .userSessionId(sessionId)
                                     .offeredSubjectsId(findOfferedSubjectsId.get().getOfferedSubjectsId())
@@ -504,12 +528,14 @@ public class ProcessListController {
                                     .build();
                                     processListUserOwnAssignmentRepository.save(userOwnAssignment);
 
+                                    // 해당 과목의 영상 목록 확인 
                                     List<ProcessListSubjectOwnVideo> findSubjectVideos = processListSubjectOwnVideoRepository.findBySovOfferedSubjectsId(findOfferedSubjectsId.get().getOfferedSubjectsId());
 
                                     if(!findSubjectVideos.isEmpty()){
 
                                         for(ProcessListSubjectOwnVideo findSubjectVideo : findSubjectVideos){
 
+                                            // 과목별 영상 삽입 
                                             UserOwnSubjectVideo userOwnSubjectVideo = UserOwnSubjectVideo.builder()
                                             .uosvSessionId(sessionId)
                                             .uosvEpisodeId(findSubjectVideo.getEpisodeId())
@@ -523,12 +549,14 @@ public class ProcessListController {
 
                                     }
 
+                                    // 해당 과목의 과제 목록 확인 
                                     List<ProcessListAssignment> findAssignments = processListAssignmentRepository.findByOfferedSubjectsId(findOfferedSubjectsId.get().getOfferedSubjectsId());
 
                                     if(!findAssignments.isEmpty()){
 
                                         for(ProcessListAssignment findAssignment : findAssignments){
 
+                                            // 과목별 과제 삽입
                                             UserOwnAssignmentEvaluation userOwnAssignmentEvaluation = UserOwnAssignmentEvaluation.builder()
                                             .uoaeSessionId(sessionId)
                                             .assignmentId(findAssignment.getAssignmentId())
