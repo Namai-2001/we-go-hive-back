@@ -35,6 +35,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.dev.restLms.entity.CourseOwnSubject;
 import com.dev.restLms.entity.FileInfo;
+import com.dev.restLms.entity.OfferedSubjects;
 import com.dev.restLms.entity.PermissionGroup;
 import com.dev.restLms.entity.Subject;
 import com.dev.restLms.entity.UserOwnPermissionGroup;
@@ -42,6 +43,7 @@ import com.dev.restLms.entity.UserOwnPermissionGroup;
 import com.dev.restLms.sechan.teacherSubjectRegister.repository.TSR_COS2_Repository;
 import com.dev.restLms.sechan.teacherSubjectRegister.repository.TSR_COS_Repository;
 import com.dev.restLms.sechan.teacherSubjectRegister.repository.TSR_File_Repository;
+import com.dev.restLms.sechan.teacherSubjectRegister.repository.TSR_OS_Repository;
 import com.dev.restLms.sechan.teacherSubjectRegister.repository.TSR_PGR_Repository;
 import com.dev.restLms.sechan.teacherSubjectRegister.repository.TSR_S_Repository;
 import com.dev.restLms.sechan.teacherSubjectRegister.repository.TSR_UOPGR_Repository;
@@ -72,6 +74,9 @@ public class TSR_Controller {
 
     @Autowired
     private TSR_UOPGR_Repository tsr_uopgr_repository;
+
+    @Autowired
+    private TSR_OS_Repository tsr_os_repository;
 
     private static final String ROOT_DIR = "src/main/resources/static/";
     private static final String UPLOAD_DIR = "SubjectImage/";
@@ -229,16 +234,24 @@ public class TSR_Controller {
             subjectData.put("subjectPromotion", subject.getSubjectPromotion());
             subjectData.put("subjectImageLink", subject.getSubjectImageLink());
 
-            // 리포지토리 메서드로 조건에 맞는 CourseOwnSubject 검색
-            Optional<CourseOwnSubject> courseOwnSubject = tsr_cos_repository
-                    .findBySubjectIdAndCourseId(
-                            subject.getSubjectId(), "individual-subjects");
+            // OfferedSubjects에서 courseId 조회
+            List<OfferedSubjects> offeredSubjectsList = tsr_os_repository.findBySubjectId(subject.getSubjectId());
 
-            // 결과가 있는 경우 승인 상태 추가
-            if (courseOwnSubject.isPresent()) {
-                subjectData.put("subjectApproval", courseOwnSubject.get().getSubjectApproval());
+            if (!offeredSubjectsList.isEmpty()) {
+                // OfferedSubjects로부터 courseId 가져오기 및 CourseOwnSubject 검색
+                for (OfferedSubjects offeredSubject : offeredSubjectsList) {
+                    String courseId = offeredSubject.getCourseId();
+
+                    Optional<CourseOwnSubject> courseOwnSubject = tsr_cos_repository
+                            .findBySubjectIdAndCourseId(subject.getSubjectId(), courseId);
+
+                    if (courseOwnSubject.isPresent()) {
+                        subjectData.put("subjectApproval", courseOwnSubject.get().getSubjectApproval());
+                        break; // 첫 번째 일치하는 결과만 사용
+                    }
+                }
             } else {
-                subjectData.put("subjectApproval", "N/A"); // 조건을 만족하는 결과가 없는 경우
+                subjectData.put("subjectApproval", "N/A");
             }
 
             return subjectData;
