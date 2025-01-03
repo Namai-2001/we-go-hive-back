@@ -65,6 +65,34 @@ public class announcementPostController {
     private static final String BOARD_DIR = "NoticeBoard/";
     private static final long MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB (바이트 단위)
 
+    @GetMapping("/postCheck")
+    @Operation(summary = "책임자 식별", description = "책임자가 맞는지 식별합니다.")
+    public ResponseEntity<?> getPermissionCheck() {
+
+        UsernamePasswordAuthenticationToken auth = (UsernamePasswordAuthenticationToken) SecurityContextHolder
+                                .getContext().getAuthentication();
+                // 유저 세션아이디 보안 컨텍스트에서 가져오기
+                String sessionId = auth.getPrincipal().toString();
+
+        Optional<UserOwnPermissionGroup> permissionCheck = announcementPostUserOwnPermissionGroupRepository.findBySessionId(sessionId);
+
+        Optional<announcementPostPermissionGroup> permissionNameCheck = announcementPostPermissionGroupRepository.findByPermissionGroupUuid(permissionCheck.get().getPermissionGroupUuid2());
+
+        String permissionName = permissionNameCheck.get().getPermissionName();
+
+        if(permissionCheck.isPresent()){
+            if(permissionName.equals("OFFICER") && permissionName.equals("SITE_OFFICER")){
+                return ResponseEntity.ok().body("공지사항 작성 권한이 확인되었습니다.");
+            }else if(permissionName.equals("INDIV_OFFICER")){
+                return ResponseEntity.ok().body("공지사항 작성 권한이 확인되었습니다.");
+            }else{
+                return ResponseEntity.status(HttpStatus.CONFLICT).body("작성 권한이 없습니다.");
+            }
+        }
+
+        return ResponseEntity.status(HttpStatus.CONFLICT).body("작성권한이 없습니다.");
+    }
+
     @PostMapping("/post")
     @Operation(summary = "공지사항 작성", description = "공지사항을 작성합니다.")
     public ResponseEntity<?> postAnnouncement(

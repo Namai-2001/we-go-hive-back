@@ -10,4 +10,6 @@ import java.util.Optional;
 public interface QuestionBoardPostBoardRepository extends JpaRepository<Board, String> {
     Optional<QuestionBoardPostBoard> findByBoardId(String boardId);
     Optional<QuestionBoardPostBoard> findByTeacherSessionIdAndOfferedSubjectsId(String teacherSessionId, String offeredSubjectsId);
+    Optional<QuestionBoardPostBoard> findByTeacherSessionIdAndBoardId(String teacherSessionId, String boardId);
+    
 }

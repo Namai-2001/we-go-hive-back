@@ -77,6 +77,25 @@ public class FreeBulletinBoardPostController {
     private static final String BOARD_DIR = "BulletinBoard/";
     private static final long MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB (바이트 단위)
 
+    @GetMapping("/postCheck")
+    @Operation(summary = "사용자 식별")
+    public ResponseEntity<?> getPermissionCheck() {
+
+        UsernamePasswordAuthenticationToken auth = (UsernamePasswordAuthenticationToken) SecurityContextHolder
+                                .getContext().getAuthentication();
+                // 유저 세션아이디 보안 컨텍스트에서 가져오기
+                String sessionId = auth.getPrincipal().toString();
+
+        Optional<UserOwnPermissionGroup> permissionCheck = freeBulletinBoardPostUserOwnPermissionGroupRepository.findBySessionId(sessionId);
+
+        if(permissionCheck.isPresent()){
+            return ResponseEntity.ok().body("작성 권한이 확인되었습니다.");
+        }else{
+            return ResponseEntity.status(HttpStatus.CONFLICT).body("작성 권한이 없습니다.");
+        }
+
+    }
+
     @PostMapping("/post")
     @Operation(summary = "자유게시판 게시글 작성", description = "자유게시판에서 게시글을 작성합니다.")
     public ResponseEntity<?> postBoardPost(

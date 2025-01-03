@@ -16,8 +16,10 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.dev.restLms.OfficerMainPage.projection.OfficerMainPagePermissionGroup;
 import com.dev.restLms.entity.BoardPost;
 import com.dev.restLms.entity.Comment;
+import com.dev.restLms.entity.UserOwnPermissionGroup;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -126,6 +128,45 @@ public class QuestionBoardPostController {
             }
 
         return ResponseEntity.status(HttpStatus.CONFLICT).body("비밀글 입니다.");
+    }
+
+    @GetMapping("/postCheck")
+    @Operation(summary = "질문게시판 권한")
+    public ResponseEntity<?> getPermissionCheck(
+        @RequestParam String offeredSubjectId
+    ){
+
+        UsernamePasswordAuthenticationToken auth = (UsernamePasswordAuthenticationToken) SecurityContextHolder
+        .getContext().getAuthentication();
+        // 유저 세션아이디 보안 컨텍스트에서 가져오기
+        String sessionId = auth.getPrincipal().toString();
+
+        Optional<QuestionBoardPostUserOwnPermissionGroup> permissionCheck = questionBoardPostUserOwnPermissionGroupRepository.findBySessionId(sessionId);
+
+        Optional<QuestionBoardPostPermissionGroup> permissionNameCheck = questionBoardPostPermissionGroupRepository.findByPermissionGroupUuid(permissionCheck.get().getPermissionGroupUuid2());
+
+        String permissionName = permissionNameCheck.get().getPermissionName();
+
+        if(permissionName.equals("OFFICER") || permissionName.equals("SITE_OFFICER") || permissionName.equals("INDIV_OFFICER")){
+            return ResponseEntity.ok().body("작성 권한이 확인되었습니다.");
+        }else if(permissionName.equals("TEACHER")){
+            Optional<QuestionBoardPostBoard> findTeacherSessionId = questionBoardPostBoardRepository.findByTeacherSessionIdAndOfferedSubjectsId(sessionId, offeredSubjectId);
+            if(findTeacherSessionId.isPresent()){
+                return ResponseEntity.ok().body("작성 권한이 확인되었습니다.");
+            }else{
+                return ResponseEntity.ok().body("작성 권한이 없습니다.");
+            }
+        }else if(permissionName.equals("STUDENT")){
+            Optional<QuestionBoardPostUserOwnAssignment> findUser = questionBoardPostUserOwnAssignmentRepository.findByUserSessionIdAndOfferedSubjectsId(sessionId, offeredSubjectId);
+            if(findUser.isPresent()){
+                return ResponseEntity.ok().body("작성 권한이 확인되었습니다.");
+            }else{
+                return ResponseEntity.status(HttpStatus.CONFLICT).body("작성 권한이 없습니다.");
+            }
+        }else{
+            return ResponseEntity.status(HttpStatus.CONFLICT).body("작성 권한이 없습니다.");
+        }
+
     }
 
     @PostMapping("/post")
