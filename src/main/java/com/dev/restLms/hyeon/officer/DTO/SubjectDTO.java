@@ -11,11 +11,12 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class OfferedSubjectsDTO {
-    private String offeredSubjectsId;
-    private String courseId;
-    private String officerSessionId;
+public class SubjectDTO {
     private String subjectId;
-    private String teacherSessionId;
     private String subjectName;
+    private String subjectDesc;
+    private String subjectCategory;
+    private String subjectImageLink;
+    private String subjectPromotion;
+    private String teacherSessionId;
 }

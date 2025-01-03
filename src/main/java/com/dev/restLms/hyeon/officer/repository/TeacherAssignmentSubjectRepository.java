@@ -10,4 +10,5 @@ import com.dev.restLms.entity.Subject;
 @Repository
 public interface TeacherAssignmentSubjectRepository extends JpaRepository<Subject, String> {
     Optional<Subject> findBySubjectId(String subjectId);
+    Optional<Subject> findBySubjectIdAndTeacherSessionId(String subjectId, String teacherSessionId);
 }

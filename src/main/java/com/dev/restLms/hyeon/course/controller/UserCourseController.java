@@ -48,15 +48,15 @@ public class UserCourseController {
     private StudentPermisionGroupRepository permisionGroupRepository;
 
     // 수료일을 기준으로 이전에 수강한 과정과 현재 수강중인 과정을 구분
-    public static boolean isCoursePast(String currentDateStr, String courseEndStr) {
+    public static boolean isCoursePast(String currentDateStr, String courseBoundaryStr) {
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
 
         // 현재 날짜와 courseBoundary를 LocalDateTime으로 변환
         LocalDateTime currentDate = LocalDateTime.parse(currentDateStr, formatter);
-        LocalDateTime courseEndDate = LocalDateTime.parse(courseEndStr, formatter);
+        LocalDateTime courseBoundaryDate = LocalDateTime.parse(courseBoundaryStr, formatter);
 
         // 현재 날짜가 수료일 이후면 true
-        return currentDate.isAfter(courseEndDate);
+        return currentDate.isAfter(courseBoundaryDate);
     }
 
     // 수료기간 계산 함수
@@ -118,11 +118,11 @@ public class UserCourseController {
                     Course course = courseRepository.findByCourseId(uoc.getCourseId());
                     if (course == null) continue;
 
-                    String courseBoundary = calculateCourseDuration(course.getCourseStartDate(), course.getCourseEndDate());
+                    String courseBoundary = calculateCourseDuration(course.getCourseStartDate(), course.getCourseBoundary());
                     String formattedStartDate = convertTo8DigitDate(course.getCourseStartDate());
                     String formattedEndDate = convertTo8DigitDate(course.getCourseEndDate());
 
-                    if ("T".equals(uoc.getCourseApproval()) && isCoursePast(currentDate, course.getCourseEndDate())) {
+                    if ("T".equals(uoc.getCourseApproval()) && isCoursePast(currentDate, course.getCourseBoundary())) {
                         
                         CourseDTO c = CourseDTO.builder()
                             .courseId(course.getCourseId())
@@ -138,7 +138,7 @@ public class UserCourseController {
                         // 수료일이 과거면 "이전에 수료한 과정"
                         previousCourses.add(c);
 
-                    } else if ("F".equals(uoc.getCourseApproval()) && !isCoursePast(currentDate, course.getCourseEndDate())) {
+                    } else if ("F".equals(uoc.getCourseApproval()) && !isCoursePast(currentDate, course.getCourseBoundary())) {
 
                         elapsedDays = calculateCourseDuration(course.getCourseStartDate(), formattedDate);
                         
