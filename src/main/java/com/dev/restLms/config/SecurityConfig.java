@@ -3,6 +3,7 @@ package com.dev.restLms.config;
 import java.util.Arrays;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -69,14 +70,17 @@ public class SecurityConfig {
         return http.build();
     }
 
+    @Value("${CORS-URL:http://localhost:3000}")
+    private String corsUrl;
+
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOrigins(
-                Arrays.asList("http://localhost:3000", "http://10.10.10.200:3000", "http://10.10.10.48:3000", "http://192.168.219.105:3000")); // React
-                                                                                                                // 앱의
+                Arrays.asList(corsUrl)); // React
+                                                                     // 앱의
         // URL 허용
-        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE")); // 허용할 HTTP 메서드
+        configuration.setAllowedMethods(Arrays.asList("GET", "POST")); // 허용할 HTTP 메서드
         configuration.setAllowedHeaders(Arrays.asList("*")); // 모든 헤더 허용
         configuration.setAllowCredentials(true); // 자격 증명 허용
 
