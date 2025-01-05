@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -30,29 +31,30 @@ import org.springframework.web.bind.annotation.RequestParam;
 @RequestMapping("/naver")
 public class NaverController {
 
-    public final String NAVER_BASE_URL = "https://nid.naver.com";
-    public final String NAVER_URI = "/oauth2.0/token";
+    public final String NAVER_OAUTH_BASE_URL = "https://nid.naver.com";
+    public final String NAVER_OAUTH_TOKEN = "/oauth2.0/token";
     public final String NAVER_HEADER_CONTENT_TYPE = "text/html;charset=utf-8";
-    public final String NAVER_CLIENT_ID = "WBKWxAxoDOSiEal4xwod";
-    public final String NAVER_CLIENT_SECRET = "rli1o7lzhV";
-    public final String NAVER_REDIRECT_URI = "http://localhost:3000/naver/authorize";
-    public final String NAVER_GRANT_TYPE = "authorization_code";
-    public final String STATE = "FALSE";
+
+    @Value("${NAVER_CLIENT_ID:WBKWxAxoDOSiEal4xwod}")
+    String NAVER_CLIENT_ID;
+    @Value("${NAVER_CLIENT_SECRET:rli1o7lzhV}")
+    String NAVER_CLIENT_SECRET;
 
     // @GetMapping("/getToken")
     // @Operation(summary = "네이버 OAuth2 토큰 가져오기", description = "1. 네이버 OAuth 토큰
     // 가져오기")
     public ResponseEntity<NaverUserResponse> getToken(
-            @Parameter(name = "code", description = "사용자 인증 인가 code") @RequestParam String code) {
-        WebClient webClient = WebClient.create(NAVER_BASE_URL);
+            @Parameter(name = "code", description = "사용자 인증 인가 code") @RequestParam String code,
+            @RequestParam String redirectUri) {
+        WebClient webClient = WebClient.create(NAVER_OAUTH_BASE_URL);
         NaverUserResponse response = webClient.post()
-                .uri(NAVER_URI + "?" +
-                        "grant_type=" + NAVER_GRANT_TYPE +
+                .uri(NAVER_OAUTH_TOKEN + "?" +
+                        "grant_type=" + "authorization_code" +
                         "&client_id=" + NAVER_CLIENT_ID +
                         "&client_secret=" + NAVER_CLIENT_SECRET +
-                        "&redirect_uri=" + NAVER_REDIRECT_URI +
+                        "&redirect_uri=" + redirectUri +
                         "&code=" + code +
-                        "&state=" + STATE)
+                        "&state=" + "FALSE")
                 .header("Content-Type", NAVER_HEADER_CONTENT_TYPE)
                 .retrieve()
                 .bodyToMono(NaverUserResponse.class) // JSON 응답을 DTO로 변환
@@ -134,9 +136,9 @@ public class NaverController {
     // @Operation(summary = "네이버 연동 해제", description = "네이버 연동 해제")
     public ResponseEntity<?> logout(@Parameter(description = "access_token") @RequestParam String accessToken) {
         String token = accessToken;
-        WebClient webClient = WebClient.create(NAVER_BASE_URL);
+        WebClient webClient = WebClient.create(NAVER_OAUTH_BASE_URL);
         NaverNidMeResponse response = webClient.get()
-                .uri(NAVER_URI + "?"
+                .uri(NAVER_OAUTH_TOKEN + "?"
                         + "grant_type=delete"
                         + "&client_id=" + NAVER_CLIENT_ID
                         + "&client_secret=" + NAVER_CLIENT_SECRET
@@ -154,10 +156,11 @@ public class NaverController {
     @GetMapping("/authorize")
     @Operation(summary = "프론트 로그인 검증 호출", description = "네이버로 간편 로그인")
     public ResponseEntity<?> authorize(
-            @Parameter(name = "AccessToken", description = "연결 해제 대상 사용자의 AccessToken") @RequestParam String code) {
+            @Parameter(name = "code", description = "연결 해제 대상 사용자의 인가 코드") @RequestParam String code,
+            @Parameter(name = "redirectri", description = "redirect 대상 uri") @RequestParam String redirectUri) {
 
         // 토큰 가져오기
-        ResponseEntity<NaverUserResponse> getTokenRes = getToken(code);
+        ResponseEntity<NaverUserResponse> getTokenRes = getToken(code, redirectUri);
         NaverUserResponse tokenBody = getTokenRes.getBody();
         if (tokenBody == null) {
             return ResponseEntity.status(500).body("토큰 발급 중 오류가 발생했습니다.");
@@ -176,12 +179,9 @@ public class NaverController {
             return ResponseEntity.status(500).body("로그인 중 오류가 발생했습니다.");
         }
 
-
-
         // 연결 끊기
         // ResponseEntity<?> logoutRes = logout(tokenBody.access_token);
         logout(tokenBody.access_token);
-
 
         // 결과
         ResponseEntity<?> response = loginRes;
