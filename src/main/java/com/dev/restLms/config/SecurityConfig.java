@@ -70,7 +70,7 @@ public class SecurityConfig {
         return http.build();
     }
 
-    @Value("${CORS-URL:http://localhost:3000}")
+    @Value("${MY_AMPLIFY_URL:http://localhost:3000}")
     private String corsUrl;
 
     @Bean

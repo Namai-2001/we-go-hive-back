@@ -5,7 +5,7 @@ plugins {
 }
 
 group = 'com.dev'
-version = '0.0.7-OAUTH2 BUILD'
+version = '0.1.0-EC2BUILD'
 
 java {
 	toolchain {
