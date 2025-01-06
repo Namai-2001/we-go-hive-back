@@ -12,7 +12,6 @@ import lombok.Setter;
 @AllArgsConstructor
 @Builder
 public class SM_Survey_DTO {
-    private String surveyAnswerId;
     private String surveyQuestionId;   // 질문 ID
     private String score;              // 5지선다 점수 (1~5)
     private String answerData;         // 서술형 답변
