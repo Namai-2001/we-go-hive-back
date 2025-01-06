@@ -9,3 +9,4 @@ import com.dev.restLms.entity.SurveyOwnResult;
 public interface SM_SOR_Repository extends JpaRepository<SurveyOwnResult, String> {
     List<SurveyOwnResult> findBySurveyExecutionIdAndSessionId(String surveyExecutionId, String sessionId);
 }
+

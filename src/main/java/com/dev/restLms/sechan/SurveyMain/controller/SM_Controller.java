@@ -28,6 +28,7 @@ import com.dev.restLms.sechan.SurveyMain.repository.SM_C_Repository;
 import com.dev.restLms.sechan.SurveyMain.repository.SM_OS_Repository;
 import com.dev.restLms.sechan.SurveyMain.repository.SM_SE_Repository;
 import com.dev.restLms.sechan.SurveyMain.repository.SM_SOA_Repository;
+import com.dev.restLms.sechan.SurveyMain.repository.SM_SOR2_Repository;
 import com.dev.restLms.sechan.SurveyMain.repository.SM_SOR_Repository;
 import com.dev.restLms.sechan.SurveyMain.repository.SM_SQ2_Repository;
 import com.dev.restLms.sechan.SurveyMain.repository.SM_SQ_Repository;
@@ -44,6 +45,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @RestController
 @Tag(name = "만족도조사 조회", description = "사용자의 만족도 조사 가능 여부")
@@ -78,6 +80,9 @@ public class SM_Controller {
 
     @Autowired
     private SM_SQ2_Repository sm_sq2_repository;
+
+    @Autowired
+    private SM_SOR2_Repository sm_sor2_repository;
 
     // 날짜 형식 변환 함수
     // public static String convertTo8DigitDate(String dateString) {
@@ -449,72 +454,61 @@ public class SM_Controller {
     @GetMapping("/survey/questions")
     @Operation(summary = "만족도 조사 질문 조회", description = "SurveyExecution ID를 기준으로 질문을 반환하고 설문 유형을 판별합니다.")
     public ResponseEntity<?> getSurveyQuestions(
-            @RequestParam String surveyExecutionId,
-            @RequestParam(required = false) String courseId,
-            @RequestParam(required = false) String offeredSubjectsId) {
+            @RequestParam String surveyExecutionId) {
+        UsernamePasswordAuthenticationToken auth = (UsernamePasswordAuthenticationToken) SecurityContextHolder
+                .getContext().getAuthentication();
+        // 유저 세션아이디 보안 컨텍스트에서 가져오기
+        String sessionId = auth.getPrincipal().toString();
         try {
             System.out.println("GET /survey/questions called");
             System.out.println("surveyExecutionId: " + surveyExecutionId);
-            System.out.println("courseId: " + courseId);
-            System.out.println("offeredSubjectsId: " + offeredSubjectsId);
+            System.out.println("sessionId: " + sessionId);
 
-            // SurveyExecution 조회
-            Optional<SurveyExecution> executionOpt = sm_se_repository.findById(surveyExecutionId);
-            if (executionOpt.isEmpty()) {
-                System.out.println("SurveyExecution not found for ID: " + surveyExecutionId);
-                return ResponseEntity.status(HttpStatus.NOT_FOUND).body("유효하지 않은 SurveyExecution ID입니다.");
+            // `surveyOwnResult`에서 사용자의 질문 리스트 조회
+            List<SurveyOwnResult> ownResults = sm_sor_repository.findBySurveyExecutionIdAndSessionId(
+                    surveyExecutionId, sessionId);
+
+            if (ownResults.isEmpty()) {
+                System.out.println("No survey questions assigned for sessionId: " + sessionId);
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body("사용자에게 할당된 질문이 없습니다.");
             }
 
-            SurveyExecution execution = executionOpt.get();
-            System.out.println("SurveyExecution found: " + execution);
+            System.out.println("SurveyOwnResults found: " + ownResults.size());
 
-            // 설문 유형 판별
-            String surveyType;
-            if (offeredSubjectsId != null) {
-                surveyType = "subject"; // 과목 설문조사
-            } else if (courseId != null) {
-                surveyType = "course"; // 과정 설문조사
-            } else {
-                if (execution.getOfferedSubjectsId() != null) {
-                    surveyType = "subject";
-                } else if (execution.getCourseId() != null) {
-                    surveyType = "course";
-                } else {
-                    System.out.println("SurveyExecution에 과정 또는 과목 정보가 없습니다.");
-                    return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                            .body("SurveyExecution에 과정 또는 과목 정보가 없습니다.");
-                }
-            }
-            System.out.println("Survey type determined: " + surveyType);
+            // `surveyOwnResult`에서 질문 ID 추출
+            List<String> questionIds = ownResults.stream()
+                    .map(SurveyOwnResult::getSurveyQuestionId)
+                    .collect(Collectors.toList());
 
-            // 질문 조회
-            List<SurveyQuestion> questions = sm_sq2_repository.findBySurveyCategory(surveyType);
+            // 질문 데이터 조회
+            List<SurveyQuestion> questions = sm_sq2_repository.findBySurveyQuestionIdIn(questionIds);
+
             if (questions.isEmpty()) {
-                System.out.println("No questions found for survey type: " + surveyType);
-                return ResponseEntity.status(HttpStatus.NOT_FOUND).body("등록된 질문이 없습니다.");
+                System.out.println("No questions found for the provided question IDs");
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body("질문 데이터가 없습니다.");
             }
+
             System.out.println("Questions retrieved: " + questions.size());
 
-            // SurveyAnswerId 조회 및 매핑
+            // 질문 데이터와 응답 상태 매핑
             List<Map<String, Object>> questionData = new ArrayList<>();
             for (SurveyQuestion question : questions) {
-                System.out.println("Processing question: " + question.getSurveyQuestionId());
-                Optional<SurveyOwnAnswer> answerOpt = sm_soa_repository
-                        .findBySurveyQuestionId(question.getSurveyQuestionId());
-
                 Map<String, Object> questionMap = new HashMap<>();
                 questionMap.put("surveyQuestionId", question.getSurveyQuestionId());
                 questionMap.put("questionData", question.getQuestionData());
                 questionMap.put("answerCategory", question.getAnswerCategory());
+
+                // `surveyOwnAnswer`에서 응답 데이터 가져오기
+                Optional<SurveyOwnAnswer> answerOpt = sm_soa_repository
+                        .findBySurveyQuestionId(question.getSurveyQuestionId());
                 questionMap.put("surveyAnswerId", answerOpt.map(SurveyOwnAnswer::getSurveyAnswerId).orElse(null));
 
                 System.out.println("Mapped question data: " + questionMap);
                 questionData.add(questionMap);
             }
 
-            // 결과 반환
+            // 최종 결과 반환
             Map<String, Object> response = new HashMap<>();
-            response.put("surveyType", surveyType);
             response.put("questions", questionData);
 
             System.out.println("Final response: " + response);
@@ -543,25 +537,26 @@ public class SM_Controller {
                 return ResponseEntity.badRequest().body("유효하지 않은 SurveyExecution ID: " + surveyExecutionId);
             }
 
+            // 각 답변 처리
             for (SM_Survey_DTO answerDTO : answers) {
                 System.out.println("Processing answer: " + answerDTO);
 
-                // SurveyQuestion 유효성 확인
-                Optional<SurveyQuestion> questionOpt = sm_sq_repository.findById(answerDTO.getSurveyQuestionId());
-                if (questionOpt.isEmpty()) {
+                // `SurveyOwnResult`를 사용해 유효성 확인
+                List<SurveyOwnResult> ownResults = sm_sor2_repository.findBySurveyExecutionIdAndSurveyQuestionId(
+                        surveyExecutionId, answerDTO.getSurveyQuestionId());
+
+                if (ownResults.isEmpty()) {
                     return ResponseEntity.badRequest()
                             .body("유효하지 않은 SurveyQuestion ID: " + answerDTO.getSurveyQuestionId());
                 }
 
-                // `score` 또는 `answerData`가 하나라도 있어야 함
-                if (answerDTO.getScore() == null && answerDTO.getAnswerData() == null) {
-                    return ResponseEntity.badRequest()
-                            .body("점수 또는 답변 데이터가 비어 있습니다: " + answerDTO.getSurveyQuestionId());
-                }
+                // 여러 결과 중 첫 번째를 사용
+                SurveyOwnResult ownResult = ownResults.get(0);
 
                 // SurveyOwnAnswer 존재 확인
                 Optional<SurveyOwnAnswer> existingAnswerOpt = sm_soa_repository
-                        .findBySurveyAnswerId(answerDTO.getSurveyAnswerId());
+                        .findBySurveyAnswerId(ownResult.getSurveyAnswerId());
+
                 if (existingAnswerOpt.isPresent()) {
                     // 기존 레코드 업데이트
                     SurveyOwnAnswer existingAnswer = existingAnswerOpt.get();
@@ -570,29 +565,25 @@ public class SM_Controller {
                     sm_soa_repository.save(existingAnswer);
                 } else {
                     return ResponseEntity.badRequest()
-                            .body("SurveyAnswerId에 해당하는 답변이 존재하지 않습니다: " + answerDTO.getSurveyAnswerId());
+                            .body("SurveyAnswerId에 해당하는 답변이 존재하지 않습니다: " + ownResult.getSurveyAnswerId());
                 }
-
             }
 
             // 설문 완료 상태 확인
             List<SurveyOwnResult> results = sm_sor_repository.findBySurveyExecutionIdAndSessionId(surveyExecutionId,
                     sessionId);
 
-            boolean isSurveyCompleted = true;
-            for (SurveyOwnResult result : results) {
+            boolean isSurveyCompleted = results.stream().allMatch(result -> {
                 Optional<SurveyOwnAnswer> answerOpt = sm_soa_repository.findById(result.getSurveyAnswerId());
-                if (answerOpt.isEmpty()
-                        || (answerOpt.get().getAnswerData() == null && answerOpt.get().getScore() == null)) {
-                    isSurveyCompleted = false;
-                    break;
-                }
-            }
+                return answerOpt.isPresent()
+                        && (answerOpt.get().getAnswerData() != null || answerOpt.get().getScore() != null);
+            });
 
             String message = isSurveyCompleted ? "설문이 완료되었습니다." : "설문이 저장되었으나 모든 질문에 대한 답변이 완료되지 않았습니다.";
             return ResponseEntity.ok(message);
 
         } catch (Exception e) {
+            System.out.println("Exception occurred: " + e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("설문 저장 중 오류 발생: " + e.getMessage());
         }
     }
