@@ -77,7 +77,7 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOrigins(
-                Arrays.asList(corsUrl)); // React
+                Arrays.asList(corsUrl, "https://wegohive.com","https://www.wegohive.com")); // React
                                                                      // 앱의
         // URL 허용
         configuration.setAllowedMethods(Arrays.asList("GET", "POST")); // 허용할 HTTP 메서드
