@@ -72,7 +72,7 @@ public class TeacherAssignmentController {
   TeacherAssignmentUopgRepository userOwnPermissionGroupRepository;
 
   @Autowired
-  PursuitPermisionGroupRepository permisionGroupRepository;
+  PursuitPermisionGroupRepository permissionGroupRepository;
 
   @Autowired
   TeacherAssignmentAssignmentRepository assignmentRepository;
@@ -107,7 +107,7 @@ public class TeacherAssignmentController {
       if (uopsOpt.isEmpty()) {
         return ResponseEntity.status(403).body("접근 권한이 없습니다.");
       }
-      PursuitPermissionGroup ppg = permisionGroupRepository
+      PursuitPermissionGroup ppg = permissionGroupRepository
           .findByPermissionGroupUuid(uopsOpt.get().getPermissionGroupUuid2());
 
       if (ppg.getPermissionName().equals("OFFICER")) {
@@ -218,7 +218,7 @@ public class TeacherAssignmentController {
       if (uopsOpt.isEmpty()) {
         return ResponseEntity.status(403).body("접근 권한이 없습니다.");
       }
-      PursuitPermissionGroup ppg = permisionGroupRepository
+      PursuitPermissionGroup ppg = permissionGroupRepository
           .findByPermissionGroupUuid(uopsOpt.get().getPermissionGroupUuid2());
 
       if (ppg.getPermissionName().equals("OFFICER")) {
@@ -405,13 +405,13 @@ public class TeacherAssignmentController {
       if (uopsOpt.isEmpty()) {
         return ResponseEntity.status(403).body("접근 권한이 없습니다.");
       }
-      PursuitPermissionGroup ppg = permisionGroupRepository
+      PursuitPermissionGroup ppg = permissionGroupRepository
           .findByPermissionGroupUuid(uopsOpt.get().getPermissionGroupUuid2());
 
       if (ppg.getPermissionName().equals("OFFICER") || ppg.getPermissionName().equals("INDIV_OFFICER")) {
 
         // 모든 강사 목록 가져오기
-        PursuitPermissionGroup teacher = permisionGroupRepository.findByPermissionName("TEACHER");
+        PursuitPermissionGroup teacher = permissionGroupRepository.findByPermissionName("TEACHER");
         List<UserOwnPermissionGroup> uopg_list = userOwnPermissionGroupRepository
             .findByPermissionGroupUuid2(teacher.getPermissionGroupUuid());
 
@@ -469,122 +469,118 @@ public class TeacherAssignmentController {
   }
 
   @PostMapping("/subjects/assignTeacher")
-  @Operation(summary = "과목별 강사 배치", description = "과목에 강사 배치")
-  public ResponseEntity<?> assignTeacherToSubject(@RequestBody OfferedSubjectsDTO offeredSubjectsDTO) {
+@Operation(summary = "과목별 강사 배치", description = "과목에 강사 배치")
+public ResponseEntity<?> assignTeacherToSubject(@RequestBody OfferedSubjectsDTO offeredSubjectsDTO) {
     try {
-      UsernamePasswordAuthenticationToken auth = (UsernamePasswordAuthenticationToken) SecurityContextHolder
-          .getContext().getAuthentication();
-      final String userSessionId = auth.getPrincipal().toString();
-
-      Optional<UserOwnPermissionGroup> uopsOpt = userOwnPermissionGroupRepository.findBySessionId(userSessionId);
-      if (uopsOpt.isEmpty()) {
-        return ResponseEntity.status(403).body("접근 권한이 없습니다.");  
-      }
-      PursuitPermissionGroup ppg = permisionGroupRepository
-          .findByPermissionGroupUuid(uopsOpt.get().getPermissionGroupUuid2());
-
-      if (ppg.getPermissionName().equals("OFFICER") || ppg.getPermissionName().equals("INDIV_OFFICER")) {
-        // 변경할 강사의 sessionId
-        String newTeacherSessionId = offeredSubjectsDTO.getTeacherSessionId();
-
-        // 여기 잠들다...
-        // if (newTeacherSessionId == null || newTeacherSessionId.isEmpty()) {
-        // Board board = Board.builder()
-        // .boardCategory("Q&A 게시판")
-        // .offeredSubjectsId(offeredSubjectsDTO.getOfferedSubjectsId())
-        // .teacherSessionId(userSessionId)
-        // .build();
-        // boardRepository.save(board);
-        // } else {}
-
-        subjectRepository.findBySubjectId(offeredSubjectsDTO.getSubjectId())
-            .ifPresentOrElse(subject -> {
-              if (newTeacherSessionId.equals(subject.getTeacherSessionId())) {
-                throw new ResponseStatusException(HttpStatus.CONFLICT, "이미 배치된 강사입니다");
-              }
-              Subject s = Subject.builder()
-                  .subjectId(subject.getSubjectId())
-                  .subjectName(subject.getSubjectName())
-                  .subjectDesc(subject.getSubjectDesc())
-                  .subjectCategory(subject.getSubjectCategory())
-                  .subjectImageLink(subject.getSubjectImageLink())
-                  .subjectPromotion(subject.getSubjectPromotion())
-                  .teacherSessionId(newTeacherSessionId)
-                  .build();
-              subjectRepository.save(s);
-
-            }, () -> {
-              throw new EntityNotFoundException("해당 과목을 찾을 수 없습니다.");
-            });
-
-        offeredSubjectsRepository.findByOfferedSubjectsId(offeredSubjectsDTO.getOfferedSubjectsId())
-            .ifPresentOrElse(offeredSubjects -> {
-              if (newTeacherSessionId.equals(offeredSubjects.getTeacherSessionId())) {
-                throw new ResponseStatusException(HttpStatus.CONFLICT, "이미 배치된 강사입니다");
-              }
-              OfferedSubjects os = OfferedSubjects.builder()
-                  .offeredSubjectsId(offeredSubjects.getOfferedSubjectsId())
-                  .courseId(offeredSubjects.getCourseId())
-                  .subjectId(offeredSubjects.getSubjectId())
-                  .officerSessionId(userSessionId)
-                  .teacherSessionId(newTeacherSessionId)
-                  .build();
-              offeredSubjectsRepository.save(os);
-
-              // 게시판 생성 또는 업데이트
-              createOrUpdateBoard(offeredSubjectsDTO.getOfferedSubjectsId(), newTeacherSessionId); // Ensure it's done
-                                                                                                   // here
-            }, () -> {
-              throw new EntityNotFoundException("해당 개설 과목을 찾을 수 없습니다.");
-            });
-
-        List<Assignment> assignments = assignmentRepository
-            .findByOfferedSubjectsId(offeredSubjectsDTO.getOfferedSubjectsId());
-        for (Assignment assignment : assignments) {
-          if (newTeacherSessionId.equals(assignment.getTeacherSessionId())) {
-            continue;
-          }
-          Assignment a = Assignment.builder()
-              .assignmentId(assignment.getAssignmentId())
-              .offeredSubjectsId(assignment.getOfferedSubjectsId())
-              .deadline(assignment.getDeadline())
-              .noticeNo(assignment.getNoticeNo())
-              .cutline(assignment.getCutline())
-              .assignmentContent(assignment.getAssignmentContent())
-              .assignmentTitle(assignment.getAssignmentTitle())
-              .teacherSessionId(newTeacherSessionId)
-              .build();
-          assignmentRepository.save(a);
-
-          List<UserOwnAssignmentEvaluation> evaluations = userOwnAssignmentEvaluationRepository
-              .findByAssignmentId(assignment.getAssignmentId());
-          for (UserOwnAssignmentEvaluation evaluation : evaluations) {
-            if (newTeacherSessionId.equals(evaluation.getTeacherSessionId())) {
-              continue;
-            }
-            UserOwnAssignmentEvaluation e = UserOwnAssignmentEvaluation.builder()
-                .submissionId(evaluation.getSubmissionId())
-                .uoaeSessionId(evaluation.getUoaeSessionId())
-                .score(evaluation.getScore())
-                .fileNo(evaluation.getFileNo())
-                .isSubmit(evaluation.getIsSubmit())
-                .assignmentId(evaluation.getAssignmentId())
-                .teacherSessionId(newTeacherSessionId)
-                .build();
-            userOwnAssignmentEvaluationRepository.save(e);
-          }
+        // Null check for offeredSubjectsDTO
+        if (offeredSubjectsDTO == null) {
+            return ResponseEntity.badRequest().body("요청 데이터가 없습니다.");
         }
 
-        return ResponseEntity.ok("강사가 성공적으로 배치되었습니다.");
-      } else {
-        return ResponseEntity.status(403).body("접근 권한이 없습니다.");
-      }
+        UsernamePasswordAuthenticationToken auth = (UsernamePasswordAuthenticationToken) SecurityContextHolder
+                .getContext().getAuthentication();
+        final String userSessionId = auth.getPrincipal().toString();
+
+        Optional<UserOwnPermissionGroup> uopsOpt = userOwnPermissionGroupRepository.findBySessionId(userSessionId);
+        if (uopsOpt.isEmpty()) {
+            return ResponseEntity.status(403).body("접근 권한이 없습니다.");
+        }
+
+        PursuitPermissionGroup ppg = permissionGroupRepository
+                .findByPermissionGroupUuid(uopsOpt.get().getPermissionGroupUuid2());
+
+        if (ppg.getPermissionName().equals("OFFICER") || ppg.getPermissionName().equals("INDIV_OFFICER")) {
+            // 변경할 강사의 sessionId
+            String newTeacherSessionId = offeredSubjectsDTO.getTeacherSessionId();
+
+            subjectRepository.findBySubjectId(offeredSubjectsDTO.getSubjectId())
+                    .ifPresentOrElse(subject -> {
+                        if (newTeacherSessionId.equals(subject.getTeacherSessionId())) {
+                            throw new ResponseStatusException(HttpStatus.CONFLICT, "이미 배치된 강사입니다");
+                        }
+                        Subject s = Subject.builder()
+                                .subjectId(subject.getSubjectId())
+                                .subjectName(subject.getSubjectName())
+                                .subjectDesc(subject.getSubjectDesc())
+                                .subjectCategory(subject.getSubjectCategory())
+                                .subjectImageLink(subject.getSubjectImageLink())
+                                .subjectPromotion(subject.getSubjectPromotion())
+                                .teacherSessionId(newTeacherSessionId)
+                                .build();
+                        subjectRepository.save(s);
+
+                    }, () -> {
+                        throw new EntityNotFoundException("해당 과목을 찾을 수 없습니다.");
+                    });
+
+            offeredSubjectsRepository.findByOfferedSubjectsId(offeredSubjectsDTO.getOfferedSubjectsId())
+                    .ifPresentOrElse(offeredSubjects -> {
+                        if (newTeacherSessionId.equals(offeredSubjects.getTeacherSessionId())) {
+                            throw new ResponseStatusException(HttpStatus.CONFLICT, "이미 배치된 강사입니다");
+                        }
+                        OfferedSubjects os = OfferedSubjects.builder()
+                                .offeredSubjectsId(offeredSubjects.getOfferedSubjectsId())
+                                .courseId(offeredSubjects.getCourseId())
+                                .subjectId(offeredSubjects.getSubjectId())
+                                .officerSessionId(userSessionId)
+                                .teacherSessionId(newTeacherSessionId)
+                                .build();
+                        offeredSubjectsRepository.save(os);
+
+                        // 게시판 생성 또는 업데이트
+                        createOrUpdateBoard(offeredSubjectsDTO.getOfferedSubjectsId(), newTeacherSessionId);
+                    }, () -> {
+                        throw new EntityNotFoundException("해당 개설 과목을 찾을 수 없습니다.");
+                    });
+
+            List<Assignment> assignments = assignmentRepository
+                    .findByOfferedSubjectsId(offeredSubjectsDTO.getOfferedSubjectsId());
+            for (Assignment assignment : assignments) {
+                if (newTeacherSessionId.equals(assignment.getTeacherSessionId())) {
+                    continue;
+                }
+                Assignment a = Assignment.builder()
+                        .assignmentId(assignment.getAssignmentId())
+                        .offeredSubjectsId(assignment.getOfferedSubjectsId())
+                        .deadline(assignment.getDeadline())
+                        .noticeNo(assignment.getNoticeNo())
+                        .cutline(assignment.getCutline())
+                        .assignmentContent(assignment.getAssignmentContent())
+                        .assignmentTitle(assignment.getAssignmentTitle())
+                        .teacherSessionId(newTeacherSessionId)
+                        .build();
+                assignmentRepository.save(a);
+
+                List<UserOwnAssignmentEvaluation> evaluations = userOwnAssignmentEvaluationRepository
+                        .findByAssignmentId(assignment.getAssignmentId());
+                for (UserOwnAssignmentEvaluation evaluation : evaluations) {
+                    if (newTeacherSessionId.equals(evaluation.getTeacherSessionId())) {
+                        continue;
+                    }
+                    UserOwnAssignmentEvaluation e = UserOwnAssignmentEvaluation.builder()
+                            .submissionId(evaluation.getSubmissionId())
+                            .uoaeSessionId(evaluation.getUoaeSessionId())
+                            .score(evaluation.getScore())
+                            .fileNo(evaluation.getFileNo())
+                            .isSubmit(evaluation.getIsSubmit())
+                            .assignmentId(evaluation.getAssignmentId())
+                            .teacherSessionId(newTeacherSessionId)
+                            .build();
+                    userOwnAssignmentEvaluationRepository.save(e);
+                }
+            }
+
+            return ResponseEntity.ok("강사가 성공적으로 배치되었습니다.");
+        } else {
+            return ResponseEntity.status(403).body("접근 권한이 없습니다.");
+        }
     } catch (ResponseStatusException ex) {
-      return ResponseEntity.status(ex.getStatusCode()).body(ex.getReason());
+        return ResponseEntity.status(ex.getStatusCode()).body(ex.getReason());
     } catch (Exception e) {
-      return ResponseEntity.status(500).body("서버 오류가 발생했습니다.");
+        return ResponseEntity.status(500).body("서버 오류가 발생했습니다.");
     }
-  }
+}
+
 
   private void createOrUpdateBoard(String offeredSubjectsId, String newTeacherSessionId) {
     // 개설 과목에 해당하는 게시판 생성 또는 업데이트

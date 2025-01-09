@@ -122,7 +122,7 @@ public class UserCourseController {
                     String formattedStartDate = convertTo8DigitDate(course.getCourseStartDate());
                     String formattedEndDate = convertTo8DigitDate(course.getCourseEndDate());
 
-                    if ("T".equals(uoc.getCourseApproval()) && isCoursePast(currentDate, course.getCourseEndDate())) {
+                    if (isCoursePast(currentDate, course.getCourseEndDate())) {
                         
                         CourseDTO c = CourseDTO.builder()
                             .courseId(course.getCourseId())
