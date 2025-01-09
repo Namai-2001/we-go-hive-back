@@ -3,9 +3,7 @@ package com.dev.restLms.hyeon.profile.controller;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.Period;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
@@ -67,9 +65,15 @@ public class UserModifyController {
 
             ProfileUser user = profileUser.get();
             Map<String, String> userInfo = new HashMap<>();
-            String formattedDate = LocalDateTime.now().plusDays(1).format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
-            String pcd = getDaysSincePwChange(user.getPwChangeDate(), formattedDate);
-            
+            String formattedDate = LocalDateTime.now().plusDays(1)
+                    .format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
+            String pcd = "";
+            try {
+                pcd = getDaysSincePwChange(user.getPwChangeDate(), formattedDate);
+            } catch (Exception e) {
+                pcd = "";
+            }
+
             userInfo.put("sessionId", user.getSessionId());
             userInfo.put("nickname", user.getNickname());
             userInfo.put("userName", user.getUserName());
@@ -77,9 +81,9 @@ public class UserModifyController {
             userInfo.put("phoneNumber", formatPhoneNumber(user.getPhoneNumber()));
             userInfo.put("userBirth", formatBirthDate(user.getUserBirth()));
             userInfo.put("pcd", pcd);
-            if(user.getFileNo()==null || user.getFileNo().isEmpty() || user.getFileNo().equals("0")){
+            if (user.getFileNo() == null || user.getFileNo().isEmpty() || user.getFileNo().equals("0")) {
                 userInfo.put("fileNo", "16235caa-b7c2-4fb4-98f0-d16cc18c2315");
-            }else{
+            } else {
                 userInfo.put("fileNo", user.getFileNo());
             }
 
@@ -132,7 +136,6 @@ public class UserModifyController {
         }
     }
 
-
     private static final String ROOT_DIR = "src/main/resources/static/";
     private static final String UPLOAD_DIR = "Profile/";
     private static final long MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB (바이트 단위)
@@ -150,7 +153,7 @@ public class UserModifyController {
             }
 
             User user = userOptional.get();
-            
+
             if (file != null && !"no-file".equals(file.getOriginalFilename())) { // 파일 크기 확인
                 Optional<FileInfo> findFileInfo = fileinfoRepository
                         .findByFileNo(userOptional.get().getFileNo());
@@ -164,7 +167,7 @@ public class UserModifyController {
                         return ResponseEntity.status(HttpStatus.CONFLICT).body("파일 삭제 실패: " + e.getMessage());
                     }
                 }
-    
+
                 if (file != null) {
                     // 파일 크기 확인
                     if (file.getSize() > MAX_FILE_SIZE) {
@@ -177,23 +180,23 @@ public class UserModifyController {
                     // 파일의 마지막 경로 (파일명 + 확장자 전까지 저장)
                     String filePath = path.toString().substring(0, path.toString().lastIndexOf("\\") + 1);
 
-                    if(!findFileInfo.isPresent()) {
+                    if (!findFileInfo.isPresent()) {
                         // 고유한 파일 번호 생성
                         String fileNo = UUID.randomUUID().toString();
 
                         FileInfo fileInfo = FileInfo.builder()
-                        .fileNo(fileNo)
-                        .fileSize(Long.toString(file.getSize()))
-                        .filePath(filePath)
-                        .orgFileNm(file.getOriginalFilename())
-                        .encFileNm(uniqueFileName)
-                        .uploadDt(LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss")))
-                        .uploaderSessionId(userSessionId)
-                        .build();
+                                .fileNo(fileNo)
+                                .fileSize(Long.toString(file.getSize()))
+                                .filePath(filePath)
+                                .orgFileNm(file.getOriginalFilename())
+                                .encFileNm(uniqueFileName)
+                                .uploadDt(LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss")))
+                                .uploaderSessionId(userSessionId)
+                                .build();
                         fileinfoRepository.save(fileInfo);
                         user.setFileNo(fileNo);
                         userRepository.save(user);
-                    } else if(findFileInfo.isPresent()) {
+                    } else if (findFileInfo.isPresent()) {
                         FileInfo fileInfo = findFileInfo.get();
                         fileInfo.setFilePath(filePath);
                         fileInfo.setFileSize(Long.toString(file.getSize()));
@@ -225,7 +228,7 @@ public class UserModifyController {
                 return ResponseEntity.status(404).body("사용자 정보를 찾을 수 없습니다.");
             }
             User user = userOptional.get();
-            
+
             // 현재 비밀번호 확인
             if (user.getUserPw() != null && !user.getUserPw().equals(updateDTO.getUserPw())) {
                 return ResponseEntity.status(400).body("잘못된 비밀번호입니다.");
@@ -237,7 +240,6 @@ public class UserModifyController {
         }
     }
 
-    
     @PostMapping("/passwordUpdate")
     @Operation(summary = "비밀번호 수정", description = "사용자의 비밀번호를 수정합니다.")
     public ResponseEntity<?> updateUserPassword(@RequestBody UserCredentialsDTO updateDTO) {
@@ -251,13 +253,13 @@ public class UserModifyController {
             }
 
             User user = userOptional.get();
-            if(user.getUserPw() != null && user.getUserPw().equals(updateDTO.getUserPw())) {
+            if (user.getUserPw() != null && user.getUserPw().equals(updateDTO.getUserPw())) {
                 return ResponseEntity.status(400).body("새 비밀번호는 기존 비밀번호와 달라야 합니다.");
-            } else if(user.getUserPw() == null && !user.getUserPw().matches(".{8,}")) {
+            } else if (user.getUserPw() == null && !user.getUserPw().matches(".{8,}")) {
                 return ResponseEntity.status(400).body("8자리 이상 입력해주세요");
             }
 
-            user.setUserPw(updateDTO.getUserPw());//비밀번호 변경
+            user.setUserPw(updateDTO.getUserPw());// 비밀번호 변경
             user.setPwChangeDate(LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss")));
             userRepository.save(user);
             return ResponseEntity.ok("사용자 비밀번호가 성공적으로 수정되었습니다.");
@@ -265,7 +267,7 @@ public class UserModifyController {
             return ResponseEntity.status(500).body("서버 오류가 발생했습니다.");
         }
     };
-    
+
     private Map<String, Object> saveFile(MultipartFile file) throws Exception {
         String originalFilename = file.getOriginalFilename();
         String fileExtension = "";
@@ -283,7 +285,6 @@ public class UserModifyController {
         return result;
     }
 
-
     private String formatPhoneNumber(String phoneNumber) {
         return phoneNumber.replaceAll("(\\d{3})(\\d{4})(\\d{4})", "$1-$2-$3");
     }
@@ -298,6 +299,6 @@ public class UserModifyController {
         LocalDateTime end = LocalDateTime.parse(currentDate, formatter);
 
         long durationInDays = ChronoUnit.DAYS.between(start, end);
-        return durationInDays+"";
+        return durationInDays + "";
     }
 }
